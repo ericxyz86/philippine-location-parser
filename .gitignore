@@ -1,0 +1,40 @@
+# Environment variables (CRITICAL - contains API keys)
+.env
+.env.local
+.env.*.local
+app/.env
+app/.env.local
+
+# Dependencies
+node_modules/
+app/node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+app/*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+.claude/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backups and temporary directories
+*-backup-*/
+app-backup-*/
+temp/
+
+# Temporary test files (root level)
+test-*.js
+
+# Playwright cache
+.playwright-mcp/
+
+# Optional: Large data files (consider Git LFS if needed)
+# app/data/*.json
