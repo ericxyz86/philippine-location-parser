@@ -976,7 +976,7 @@ function formatLocationDisplay(result) {
     }
 
     const normalized = normalizeLocation(result ? result.location : null);
-    return `Region: ${normalized.region}, Province: ${normalized.province}, City: ${normalized.city}, Barangay: ${normalized.barangay}`;
+    return `Region: ${normalized.region}\nProvince: ${normalized.province}\nCity: ${normalized.city}\nBarangay: ${normalized.barangay}`;
 }
 
 /**

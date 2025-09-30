@@ -266,7 +266,7 @@ function formatNormalizedLocation(location) {
     parts.push(`Barangay: ${removeSpecialCharacters(normalized.barangay)}`);
   }
 
-  return parts.length > 0 ? parts.join(', ') : 'None';
+  return parts.length > 0 ? parts.join('\n') : 'None';
 }
 
 module.exports = {
