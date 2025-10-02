@@ -12,7 +12,7 @@
     "dev:v4": "nodemon server-v4.js",
     "test": "node tests/test-v4.js",
     "test:regression": "node tests/test-regression.js",
-    "test:all": "npm test && npm run test:regression"
+    "test:all": "npm test && npm run test:regression && node tests/test-mcp.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.18.2",

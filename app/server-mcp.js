@@ -1,7 +1,7 @@
 require('dotenv').config();
 
-const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio');
+const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
+const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
 const { z } = require('zod');
 
 const {
@@ -9,12 +9,12 @@ const {
 } = require('./parsers/hierarchical-parser-v2');
 const {
   normalizeLocation,
-  formatNormalizedLocation,
-  hasLocationData
+  formatNormalizedLocation
 } = require('./parsers/location-normalizer');
 const {
   createEmptyLocation,
-  normalizeLocationFields
+  normalizeLocationFields,
+  hasLocationData
 } = require('./parsers/location-parser-v5');
 const LLMExtractor = require('./utils/llm-extractor');
 

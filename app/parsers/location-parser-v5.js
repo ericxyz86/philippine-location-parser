@@ -5,6 +5,8 @@
  * All actual extraction is handled by llm-extractor.js
  */
 
+const { HierarchicalLocationParserV2 } = require('./hierarchical-parser-v2');
+
 /**
  * Create empty location object
  */
@@ -75,10 +77,19 @@ function formatLocation(location) {
   return parts.join(', ');
 }
 
+/**
+ * Fallback rule-based parser for compatibility
+ */
+function parseLocation(text) {
+  const parser = new HierarchicalLocationParserV2();
+  return parser.parseLocation(text);
+}
+
 // Export functions
 module.exports = {
   createEmptyLocation,
   normalizeLocationFields,
   hasLocationData,
-  formatLocation
+  formatLocation,
+  parseLocation
 };
