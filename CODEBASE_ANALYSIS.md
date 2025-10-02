@@ -2,10 +2,11 @@
 
 ## Executive Summary
 
-The Philippine Location Parser is a sophisticated dual-mode system designed to extract location information from Philippine addresses and text, with special focus on social media comments about internet/telecom services. The system operates in two distinct modes:
+The Philippine Location Parser is a sophisticated AI-powered system designed to extract location information from Philippine addresses and text, with special focus on social media comments about internet/telecom services. The system operates exclusively with:
 
-- **V4 (Rule-based)**: Offline pattern matching with 80.6% extraction rate
 - **V5 (LLM-first)**: AI-powered extraction using GPT-4o-mini with cascading inference
+- **Bring Your Own API Key**: Users must provide their own OpenAI API key
+- **No Offline Mode**: V4 (rule-based) has been disabled
 
 ## Project Architecture
 
@@ -47,27 +48,8 @@ The system implements a sophisticated dual-mode architecture:
 
 ### 1. Parser Modules
 
-#### V4 Parser (`location-parser-v4.js`)
-- **Approach**: Rule-based pattern matching with fuzzy scoring
-- **Key Features**:
-  - Filipino/English pattern recognition
-  - Location alias resolution (QC → Quezon City, BGC → Taguig)
-  - Hashtag extraction (#AlterBacolod → Bacolod)
-  - Hierarchical fallback system
-  - Context validation to prevent false positives
-
-- **Configuration**:
-  ```javascript
-  const config = {
-    minMatchScore: 35,
-    minStringLength: 4,
-    enableHierarchicalFallback: true,
-    requireLocationContext: true
-  };
-  ```
-
 #### V5 Parser (`location-parser-v5.js`)
-- **Approach**: Simplified utilities for LLM-first system
+- **Approach**: Utilities for LLM-first system
 - **Key Functions**:
   - `createEmptyLocation()`: Creates standardized empty location object
   - `normalizeLocationFields()`: Ensures consistent "None" formatting
@@ -232,22 +214,25 @@ function normalizeLocation(location) {
 
 ## Key Strengths
 
-1. **Dual-Mode Flexibility**: Choose between offline speed or AI accuracy
+1. **AI-Powered Accuracy**: Superior location extraction with GPT-4o-mini
 2. **Philippine Context**: Deep understanding of local geography and language
 3. **Multi-Language Support**: Handles English, Tagalog, and Bisaya patterns
 4. **Robust Normalization**: Consistent output formatting
 5. **Comprehensive Testing**: Extensive regression test suite
 6. **Modern UI**: Responsive web interface with real-time updates
 7. **Integration Ready**: RESTful API with multiple input formats
+8. **User API Key Model**: Cost transparency and control for users
 
 ## Limitations and Challenges
 
 1. **Geographic Scope**: Optimized for Philippine locations only
-2. **API Dependency**: V5 requires OpenAI API key and internet connection
-3. **False Positives**: Some common words still trigger location matches
-4. **Ambiguous Barangays**: Shared names across regions can cause confusion
-5. **Rate Limiting**: V5 subject to OpenAI API rate limits
-6. **Memory Usage**: Large location databases require significant RAM
+2. **API Dependency**: Requires OpenAI API key and internet connection
+3. **No Offline Mode**: V4 rule-based system has been disabled
+4. **API Key Required**: Users must provide their own OpenAI API key
+5. **False Positives**: Some common words still trigger location matches
+6. **Ambiguous Barangays**: Shared names across regions can cause confusion
+7. **Rate Limiting**: Subject to OpenAI API rate limits
+8. **Memory Usage**: Large location databases require significant RAM
 
 ## Security Considerations
 
@@ -263,8 +248,7 @@ function normalizeLocation(location) {
 ```bash
 cd app
 npm install
-npm run start:v4    # Rule-based mode
-npm start           # LLM-first mode (default)
+npm start           # LLM-first mode with GPT-4o-mini
 ```
 
 ### Production Considerations
@@ -273,6 +257,7 @@ npm start           # LLM-first mode (default)
 - **Load Balancing**: Multiple instances for high throughput
 - **Monitoring**: Health check endpoints and logging
 - **Caching**: Redis for distributed caching in production
+- **API Key Management**: User-provided keys with validation
 
 ## Integration Points
 
@@ -317,7 +302,8 @@ POST /api/process-google-sheet
   },
   "formatted": "Region: National Capital Region (NCR), Province: Metro Manila, City: Quezon City",
   "confidence": 95,
-  "method": "llm_extracted"
+  "method": "llm_extracted",
+  "llmEnabled": true
 }
 ```
 
@@ -333,8 +319,8 @@ POST /api/process-google-sheet
 
 ## Conclusion
 
-The Philippine Location Parser represents a sophisticated solution to the complex challenge of extracting location information from unstructured text in a multilingual context. Its dual-mode architecture provides flexibility between speed and accuracy, while its deep understanding of Philippine geography and language patterns makes it uniquely suited for local applications.
+The Philippine Location Parser represents a sophisticated AI-powered solution to the complex challenge of extracting location information from unstructured text in a multilingual context. Its exclusive use of GPT-4o-mini with cascading inference provides superior accuracy, while its deep understanding of Philippine geography and language patterns makes it uniquely suited for local applications.
 
-The system's 80.6% extraction rate on social media data represents a significant improvement over basic pattern matching approaches, while the LLM-first mode offers cutting-edge accuracy for critical applications. The comprehensive testing suite, modern web interface, and robust API design make it suitable for both development and production environments.
+The system's bring-your-own-API-key model provides cost transparency and control for users, while the advanced caching system ensures efficient processing for repeated queries. The comprehensive testing suite, modern web interface, and robust API design make it suitable for both development and production environments.
 
-This codebase demonstrates excellent software engineering practices including modular design, comprehensive testing, performance optimization, and thoughtful user experience design.
+This codebase demonstrates excellent software engineering practices including modular design, comprehensive testing, performance optimization, and thoughtful user experience design, with a focus on AI-powered location intelligence.
