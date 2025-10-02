@@ -822,8 +822,22 @@ function clearAll() {
     document.getElementById('resultsSection').innerHTML = '';
     document.getElementById('resultsSection').classList.remove('active');
     document.getElementById('statsPanel').classList.remove('active');
-    document.getElementById('statusSection').classList.remove('active');
     document.getElementById('downloadGroup').style.display = 'none';
+
+    // Reset status section to initial state
+    const statusSection = document.getElementById('statusSection');
+    const statusTitle = document.getElementById('statusTitle');
+    const statusIcon = document.getElementById('statusIcon');
+    const progressBar = document.getElementById('progressBar');
+    const statusMessage = document.getElementById('statusMessage');
+
+    statusSection.classList.remove('active');
+    statusTitle.textContent = 'Processing...';
+    statusIcon.className = 'spinner status-icon';
+    statusIcon.innerHTML = '';
+    progressBar.style.width = '0%';
+    progressBar.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    statusMessage.textContent = 'Initializing...';
 
     // Clear sheet selector and Excel data
     const sheetSelectorContainer = document.getElementById('sheetSelectorContainer');
@@ -958,11 +972,23 @@ function downloadCSV() {
 }
 
 /**
- * Show status section
+ * Show status section and reset to initial state
  */
 function showStatus() {
     const statusSection = document.getElementById('statusSection');
+    const statusTitle = document.getElementById('statusTitle');
+    const statusIcon = document.getElementById('statusIcon');
+    const progressBar = document.getElementById('progressBar');
+    const statusMessage = document.getElementById('statusMessage');
+
+    // Reset to initial processing state
     statusSection.classList.add('active');
+    statusTitle.textContent = 'Processing...';
+    statusIcon.className = 'spinner status-icon';
+    statusIcon.innerHTML = '';
+    progressBar.style.width = '0%';
+    progressBar.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    statusMessage.textContent = 'Initializing...';
 }
 
 /**
