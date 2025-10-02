@@ -7,6 +7,122 @@ let currentResults = [];
 let csvData = null;
 let uploadedExcelFile = null; // Store uploaded Excel file
 
+// API Key Storage Key
+const API_KEY_STORAGE_KEY = 'location_parser_openai_key';
+
+/**
+ * Load API key from localStorage on page load
+ */
+function loadApiKey() {
+    try {
+        const savedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+        if (savedKey) {
+            document.getElementById('apiKeyInput').value = savedKey;
+            document.getElementById('apiKeyStatus').style.display = 'block';
+            console.log('✓ API key loaded from browser storage');
+        }
+    } catch (error) {
+        console.warn('Could not load API key from storage:', error);
+    }
+}
+
+/**
+ * Save API key to localStorage
+ */
+function saveApiKey() {
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const apiKey = apiKeyInput.value.trim();
+
+    if (!apiKey) {
+        showError('Please enter an API key first');
+        return;
+    }
+
+    // Validate API key format
+    if (!apiKey.startsWith('sk-') || apiKey.length < 20) {
+        showError('Invalid API key format. OpenAI API keys start with "sk-" and are longer than 20 characters.');
+        return;
+    }
+
+    try {
+        localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+        document.getElementById('apiKeyStatus').style.display = 'block';
+        showSuccess('✓ API key saved to browser storage');
+    } catch (error) {
+        showError('Failed to save API key: ' + error.message);
+    }
+}
+
+/**
+ * Clear API key from localStorage and input
+ */
+function clearApiKey() {
+    try {
+        localStorage.removeItem(API_KEY_STORAGE_KEY);
+        document.getElementById('apiKeyInput').value = '';
+        document.getElementById('apiKeyStatus').style.display = 'none';
+        showSuccess('✓ API key cleared from browser storage');
+    } catch (error) {
+        showError('Failed to clear API key: ' + error.message);
+    }
+}
+
+/**
+ * Get API key (from input or localStorage)
+ */
+function getApiKey() {
+    const inputKey = document.getElementById('apiKeyInput').value.trim();
+    if (inputKey) return inputKey;
+
+    const savedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    return savedKey || null;
+}
+
+/**
+ * Validate that user has provided an API key before processing
+ */
+function requireApiKey() {
+    const apiKey = getApiKey();
+
+    if (!apiKey) {
+        showError('⚠️ OpenAI API Key Required: Please enter your API key to use location extraction.');
+        return false;
+    }
+
+    if (!apiKey.startsWith('sk-') || apiKey.length < 20) {
+        showError('⚠️ Invalid API Key Format: OpenAI keys start with "sk-" and are longer than 20 characters.');
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Toggle API key visibility (show/hide password)
+ */
+function toggleApiKeyVisibility() {
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const eyeIcon = document.getElementById('eyeIcon');
+
+    if (apiKeyInput.type === 'password') {
+        // Show password
+        apiKeyInput.type = 'text';
+        // Change to "eye-off" icon
+        eyeIcon.innerHTML = `
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+        `;
+    } else {
+        // Hide password
+        apiKeyInput.type = 'password';
+        // Change back to "eye" icon
+        eyeIcon.innerHTML = `
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        `;
+    }
+}
+
 /**
  * Detect sheets when Google Sheets URL is entered
  */
@@ -63,6 +179,9 @@ async function detectGoogleSheets() {
 
 // Add event listener for Google Sheets URL input
 document.addEventListener('DOMContentLoaded', function() {
+    // Load API key on page load
+    loadApiKey();
+
     const sheetUrlInput = document.getElementById('sheetUrl');
     if (sheetUrlInput) {
         // Detect sheets when URL is entered or pasted
@@ -90,6 +209,11 @@ function debounce(func, wait) {
  * Process Google Sheets data
  */
 async function processSheet() {
+    // Check API key first
+    if (!requireApiKey()) {
+        return;
+    }
+
     const sheetUrl = document.getElementById('sheetUrl').value.trim();
     const columnRange = document.getElementById('columnRange').value.trim();
 
@@ -176,7 +300,8 @@ async function processSheet() {
                 columnRange: columnRange || 'B:B', // Default to column B if not specified
                 sessionId: sessionId,
                 useLLM: true,
-                sheetGid: selectedSheet // Add selected sheet gid
+                sheetGid: selectedSheet, // Add selected sheet gid
+                apiKey: getApiKey() // Include user's API key
             })
         });
 
@@ -223,6 +348,11 @@ async function processSheet() {
  * Process text input
  */
 async function processText() {
+    // Check API key first
+    if (!requireApiKey()) {
+        return;
+    }
+
     const textInput = document.getElementById('textInput').value.trim();
 
     if (!textInput) {
@@ -291,7 +421,8 @@ async function processText() {
             body: JSON.stringify({
                 texts: lines,
                 useLLM: true,
-                sessionId: sessionId  // Include sessionId for progress tracking
+                sessionId: sessionId,  // Include sessionId for progress tracking
+                apiKey: getApiKey() // Include user's API key
             })
         });
 

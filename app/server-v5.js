@@ -27,8 +27,35 @@ const { getCacheInstance } = require('./utils/cache-manager');
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// Initialize LLM extractor (set OPENAI_API_KEY in environment)
-const llmExtractor = new LLMExtractor(process.env.OPENAI_API_KEY);
+// Initialize default LLM extractor (fallback for requests without user key)
+const defaultLLMExtractor = new LLMExtractor(process.env.OPENAI_API_KEY);
+
+/**
+ * Validate OpenAI API key format
+ */
+function validateApiKey(apiKey) {
+  if (!apiKey || typeof apiKey !== 'string') {
+    return false;
+  }
+
+  // OpenAI keys start with 'sk-' and are at least 20 characters
+  return apiKey.startsWith('sk-') && apiKey.length >= 20;
+}
+
+/**
+ * Get LLM extractor instance (user-provided key REQUIRED)
+ */
+function getLLMExtractor(userApiKey) {
+  // If user provides a valid key, create instance with it
+  if (userApiKey && validateApiKey(userApiKey)) {
+    console.log('🔑 Using user-provided API key');
+    return new LLMExtractor(userApiKey);
+  }
+
+  // NO FALLBACK - Return disabled extractor
+  console.log('⚠️ No valid API key provided - LLM features disabled');
+  return new LLMExtractor(null); // Creates disabled extractor
+}
 
 // Configure multer for file uploads
 const upload = multer({
@@ -60,7 +87,7 @@ function formatLocationString(location) {
 /**
  * Process text with LLM-first extraction
  */
-async function processLLMFirst(text, useLLM = true) {
+async function processLLMFirst(text, useLLM = true, llmExtractor = defaultLLMExtractor) {
   // Check cache first
   const cacheKey = cache.generateKey(text, { useLLM });
   const cachedResult = cache.get(cacheKey);
@@ -175,11 +202,14 @@ async function processLLMFirst(text, useLLM = true) {
  */
 app.post('/api/batch-parse', async (req, res) => {
   try {
-    const { texts, useLLM = true, parallel = true, batchSize = 5, sessionId } = req.body;
+    const { texts, useLLM = true, parallel = true, batchSize = 5, sessionId, apiKey } = req.body;
 
     if (!texts || !Array.isArray(texts)) {
       return res.status(400).json({ error: 'Texts array is required' });
     }
+
+    // Get LLM extractor (user key or default)
+    const llmExtractor = getLLMExtractor(apiKey);
 
     console.log(`\n📊 Processing ${texts.length} texts...`);
     console.log('═'.repeat(50));
@@ -204,7 +234,7 @@ app.post('/api/batch-parse', async (req, res) => {
       // Use parallel batch processing
       console.log(`🚀 Using parallel processing (batch size: ${batchSize})`);
 
-      results = await processBatch(texts, processLLMFirst, {
+      results = await processBatch(texts, (text) => processLLMFirst(text, useLLM, llmExtractor), {
         batchSize,
         useLLM,
         onProgress: (progress) => {
@@ -258,7 +288,7 @@ app.post('/api/batch-parse', async (req, res) => {
           });
         }
 
-        const result = await processLLMFirst(text, useLLM);
+        const result = await processLLMFirst(text, useLLM, llmExtractor);
         results.push(result);
       }
     }
@@ -320,13 +350,16 @@ app.post('/api/batch-parse', async (req, res) => {
  */
 app.post('/api/parse-text', async (req, res) => {
   try {
-    const { text, useLLM = true } = req.body;
+    const { text, useLLM = true, apiKey } = req.body;
 
     if (!text) {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    const result = await processLLMFirst(text, useLLM);
+    // Get LLM extractor (user key or default)
+    const llmExtractor = getLLMExtractor(apiKey);
+
+    const result = await processLLMFirst(text, useLLM, llmExtractor);
 
     res.json({
       success: true,
@@ -461,7 +494,7 @@ app.post('/api/upload-excel', upload.single('file'), async (req, res) => {
  */
 app.post('/api/process-google-sheet', async (req, res) => {
   try {
-    const { sheetUrl, columnRange, useLLM = true, sessionId = Date.now().toString(), sheetGid } = req.body;
+    const { sheetUrl, columnRange, useLLM = true, sessionId = Date.now().toString(), sheetGid, apiKey } = req.body;
 
     if (!sheetUrl) {
       return res.status(400).json({ error: 'Sheet URL is required' });
@@ -522,6 +555,9 @@ app.post('/api/process-google-sheet', async (req, res) => {
 
     console.log(`\n📊 Extracted ${texts.length} texts from column range: ${columnRange || 'B (default)'}`);
 
+    // Get LLM extractor (user key or default)
+    const llmExtractor = getLLMExtractor(apiKey);
+
     // Estimate processing time
     const estimate = estimateProcessingTime(texts, useLLM);
     console.log(`⏱️ Estimated time: ${estimate.estimatedSeconds}s`);
@@ -548,7 +584,7 @@ app.post('/api/process-google-sheet', async (req, res) => {
     }
 
     // Use parallel processing for better performance
-    const results = await processBatch(texts, processLLMFirst, {
+    const results = await processBatch(texts, (text) => processLLMFirst(text, useLLM, llmExtractor), {
       batchSize,
       useLLM,
       onProgress: (progress) => {
@@ -623,11 +659,14 @@ app.post('/api/process-google-sheet', async (req, res) => {
  */
 app.post('/api/validate', async (req, res) => {
   try {
-    const { text, location } = req.body;
+    const { text, location, apiKey } = req.body;
 
     if (!text) {
       return res.status(400).json({ error: 'Text is required' });
     }
+
+    // Get LLM extractor (user key or default)
+    const llmExtractor = getLLMExtractor(apiKey);
 
     if (!llmExtractor.enabled) {
       return res.status(400).json({
@@ -662,11 +701,12 @@ app.get('/api/status', (req, res) => {
     parser: 'location-parser-v5',
     features: {
       conservativeExtraction: true,
-      llmValidation: llmExtractor.enabled,
+      llmValidation: defaultLLMExtractor.enabled,
       twoPassSystem: true,
-      blacklistEnabled: true
+      blacklistEnabled: true,
+      userProvidedApiKey: true // Indicate support for user-provided keys
     },
-    cache: llmExtractor.getCacheStats()
+    cache: defaultLLMExtractor.getCacheStats()
   });
 });
 
@@ -677,7 +717,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     version: '5.0',
-    llmEnabled: llmExtractor.enabled
+    llmEnabled: defaultLLMExtractor.enabled,
+    supportsUserApiKey: true
   });
 });
 
@@ -692,11 +733,14 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Philippine Location Parser v5 Server running on port ${PORT}`);
   console.log(`Web interface: http://localhost:${PORT}`);
-  console.log(`Features:`);
-  console.log(`  - LLM-First extraction system`);
-  console.log(`  - GPT-4o-mini: ${llmExtractor.enabled ? 'ENABLED' : 'DISABLED (set OPENAI_API_KEY)'}`);
+  console.log(`\nMode: BRING YOUR OWN API KEY`);
+  console.log(`  ⚠️  Users MUST provide their own OpenAI API key`);
+  console.log(`  ⚠️  Server fallback key is DISABLED`);
+  console.log(`\nFeatures:`);
+  console.log(`  - LLM-First extraction system (GPT-4o-mini)`);
+  console.log(`  - Per-user API key support`);
   console.log(`  - Direct location extraction with cascading inference`);
-  console.log(`API endpoints:`);
+  console.log(`\nAPI endpoints:`);
   console.log(`  - POST /api/batch-parse`);
   console.log(`  - POST /api/parse-text`);
   console.log(`  - POST /api/process-google-sheet`);
