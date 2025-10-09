@@ -1056,8 +1056,15 @@ function generateCSVFromResults(results) {
     // Store results globally for different format exports
     currentResults = results;
 
-    // Default to single column format
-    return generateSingleColumnCSV(results);
+    // Generate CSV based on current mode
+    if (currentMode === 'sentiment') {
+        return generateSentimentCSV(results);
+    } else if (currentMode === 'category') {
+        return generateCategoryCSV(results);
+    } else {
+        // Location mode - default to single column format
+        return generateSingleColumnCSV(results);
+    }
 }
 
 /**
@@ -1109,6 +1116,46 @@ function generateSingleColumnCSV(results) {
 }
 
 /**
+ * Generate CSV for sentiment classification results
+ */
+function generateSentimentCSV(results) {
+    const headers = ['Row', 'Text', 'Classification'];
+    const rows = [headers];
+
+    results.forEach((result, index) => {
+        const classification = result.classification || 'Not classified';
+
+        rows.push([
+            index + 1,
+            `"${result.text.replace(/"/g, '""')}"`,
+            `"${classification.replace(/"/g, '""')}"`
+        ]);
+    });
+
+    return rows.map(row => row.join(',')).join('\n');
+}
+
+/**
+ * Generate CSV for category classification results
+ */
+function generateCategoryCSV(results) {
+    const headers = ['Row', 'Text', 'Classification'];
+    const rows = [headers];
+
+    results.forEach((result, index) => {
+        const classification = result.classification || 'Not classified';
+
+        rows.push([
+            index + 1,
+            `"${result.text.replace(/"/g, '""')}"`,
+            `"${classification.replace(/"/g, '""')}"`
+        ]);
+    });
+
+    return rows.map(row => row.join(',')).join('\n');
+}
+
+/**
  * Generate multi-column CSV (separated location fields)
  */
 function generateMultiColumnCSV(results) {
@@ -1140,16 +1187,28 @@ function downloadCSV() {
         return;
     }
 
-    // Get selected export format
-    const formatRadio = document.querySelector('input[name="exportFormat"]:checked');
-    const format = formatRadio ? formatRadio.value : 'single';
-
-    // Generate CSV based on selected format
     let csvContent;
-    if (format === 'multiple') {
-        csvContent = generateMultiColumnCSV(currentResults);
+    let filename;
+
+    if (currentMode === 'sentiment') {
+        // Sentiment classification mode
+        csvContent = generateSentimentCSV(currentResults);
+        filename = `sentiment-classification-results-${Date.now()}.csv`;
+    } else if (currentMode === 'category') {
+        // Category classification mode
+        csvContent = generateCategoryCSV(currentResults);
+        filename = `category-classification-results-${Date.now()}.csv`;
     } else {
-        csvContent = generateSingleColumnCSV(currentResults);
+        // Location mode - check export format
+        const formatRadio = document.querySelector('input[name="exportFormat"]:checked');
+        const format = formatRadio ? formatRadio.value : 'single';
+
+        if (format === 'multiple') {
+            csvContent = generateMultiColumnCSV(currentResults);
+        } else {
+            csvContent = generateSingleColumnCSV(currentResults);
+        }
+        filename = `location-extraction-results-${Date.now()}.csv`;
     }
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1157,7 +1216,7 @@ function downloadCSV() {
     const url = URL.createObjectURL(blob);
 
     link.setAttribute('href', url);
-    link.setAttribute('download', `location_extraction_${Date.now()}.csv`);
+    link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
 
     document.body.appendChild(link);
