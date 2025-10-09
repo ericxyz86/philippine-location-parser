@@ -18,6 +18,8 @@ const {
 
 console.log('Using Location Parser v5 with LLM-First extraction');
 const LLMExtractor = require('./utils/llm-extractor');
+const SentimentClassifier = require('./utils/sentiment-classifier');
+const CategoryClassifier = require('./utils/category-classifier');
 const { formatNormalizedLocation } = require('./parsers/location-normalizer');
 const { extractFromCSV } = require('./utils/sheet-parser');
 const { preprocessText, getContextAnalysis } = require('./utils/context-detector');
@@ -198,20 +200,58 @@ async function processLLMFirst(text, useLLM = true, llmExtractor = defaultLLMExt
 }
 
 /**
- * API endpoint to process batch of texts
+ * API endpoint to process batch of texts (multi-mode support)
  */
 app.post('/api/batch-parse', async (req, res) => {
   try {
-    const { texts, useLLM = true, parallel = true, batchSize = 5, sessionId, apiKey } = req.body;
+    const {
+      texts,
+      mode = 'location',  // 'location' | 'sentiment' | 'category'
+      useLLM = true,
+      parallel = true,
+      batchSize = 5,
+      sessionId,
+      apiKey,
+      // Mode-specific parameters
+      entity,
+      sentimentLabels,
+      categories,
+      description
+    } = req.body;
 
     if (!texts || !Array.isArray(texts)) {
       return res.status(400).json({ error: 'Texts array is required' });
     }
 
-    // Get LLM extractor (user key or default)
-    const llmExtractor = getLLMExtractor(apiKey);
+    // Validate mode-specific requirements
+    if (mode === 'sentiment') {
+      if (!entity) {
+        return res.status(400).json({ error: 'Entity is required for sentiment classification mode' });
+      }
+      if (!sentimentLabels || !Array.isArray(sentimentLabels) || sentimentLabels.length === 0) {
+        return res.status(400).json({ error: 'Sentiment labels array is required for sentiment mode' });
+      }
+    }
 
-    console.log(`\n📊 Processing ${texts.length} texts...`);
+    if (mode === 'category') {
+      if (!categories || !Array.isArray(categories) || categories.length === 0) {
+        return res.status(400).json({ error: 'Categories array is required for category mode' });
+      }
+    }
+
+    // Get appropriate classifier based on mode
+    let classifier;
+    if (mode === 'location') {
+      classifier = getLLMExtractor(apiKey);
+    } else if (mode === 'sentiment') {
+      classifier = new SentimentClassifier(apiKey);
+    } else if (mode === 'category') {
+      classifier = new CategoryClassifier(apiKey);
+    } else {
+      return res.status(400).json({ error: 'Invalid mode. Must be "location", "sentiment", or "category"' });
+    }
+
+    console.log(`\n📊 Processing ${texts.length} texts in ${mode} mode...`);
     console.log('═'.repeat(50));
 
     // Estimate processing time
@@ -223,18 +263,29 @@ app.post('/api/batch-parse', async (req, res) => {
       sendProgressUpdate(sessionId, {
         type: 'started',
         total: texts.length,
-        estimatedTime: estimate.estimatedSeconds
+        estimatedTime: estimate.estimatedSeconds,
+        mode
       });
     }
 
     let results;
     let startTime = Date.now();
 
+    // Define processing function based on mode
+    let processFunction;
+    if (mode === 'location') {
+      processFunction = (text) => processLLMFirst(text, useLLM, classifier);
+    } else if (mode === 'sentiment') {
+      processFunction = (text) => classifier.classifySentiment(text, entity, sentimentLabels, description);
+    } else if (mode === 'category') {
+      processFunction = (text) => classifier.classifyCategory(text, categories, description);
+    }
+
     if (parallel && texts.length > 1) {
       // Use parallel batch processing
       console.log(`🚀 Using parallel processing (batch size: ${batchSize})`);
 
-      results = await processBatch(texts, (text) => processLLMFirst(text, useLLM, llmExtractor), {
+      results = await processBatch(texts, processFunction, {
         batchSize,
         useLLM,
         onProgress: (progress) => {
@@ -288,16 +339,23 @@ app.post('/api/batch-parse', async (req, res) => {
           });
         }
 
-        const result = await processLLMFirst(text, useLLM, llmExtractor);
+        const result = await processFunction(text);
         results.push(result);
       }
     }
 
-    // Count successes
+    // Count successes (mode-specific)
     let successCount = 0;
     results.forEach(result => {
-      if (hasLocationData(result.location)) {
-        successCount++;
+      if (mode === 'location') {
+        if (hasLocationData(result.location)) {
+          successCount++;
+        }
+      } else {
+        // For sentiment/category: success if classification is not error
+        if (result.classification && !result.classification.startsWith('Error:')) {
+          successCount++;
+        }
       }
     });
 
@@ -305,7 +363,10 @@ app.post('/api/batch-parse', async (req, res) => {
     const avgTime = Math.round(processingTime / texts.length);
 
     console.log('\n═'.repeat(50));
-    console.log(`✨ Processing complete: ${successCount}/${texts.length} with locations`);
+    const successMessage = mode === 'location'
+      ? `✨ Processing complete: ${successCount}/${texts.length} with locations`
+      : `✨ Classification complete: ${successCount}/${texts.length} successfully classified`;
+    console.log(successMessage);
     console.log(`⏱️ Total time: ${processingTime}ms (avg: ${avgTime}ms/item)`);
     if (parallel) {
       const sequentialEstimate = texts.length * avgTime;
@@ -326,10 +387,11 @@ app.post('/api/batch-parse', async (req, res) => {
 
     res.json({
       success: true,
+      mode,
       processed: results.length,
       successful: successCount,
       successRate: ((successCount / results.length) * 100).toFixed(1),
-      llmEnabled: llmExtractor.enabled,
+      llmEnabled: classifier.enabled,
       processingTime,
       averageTime: avgTime,
       parallel,
@@ -370,6 +432,130 @@ app.post('/api/parse-text', async (req, res) => {
     console.error('Error parsing text:', error);
     res.status(500).json({
       error: 'Failed to parse text',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * API endpoint for sentiment classification
+ */
+app.post('/api/classify-sentiment', async (req, res) => {
+  try {
+    const { text, entity, sentimentLabels, description = '', apiKey } = req.body;
+
+    // Validate required fields
+    if (!text) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+
+    if (!entity) {
+      return res.status(400).json({ error: 'Entity is required for sentiment classification' });
+    }
+
+    if (!sentimentLabels || !Array.isArray(sentimentLabels) || sentimentLabels.length === 0) {
+      return res.status(400).json({ error: 'Sentiment labels array is required and must not be empty' });
+    }
+
+    // Validate API key format
+    if (!apiKey || !validateApiKey(apiKey)) {
+      return res.status(400).json({
+        error: 'Valid OpenAI API key is required',
+        details: 'API key must start with "sk-" and be at least 20 characters long'
+      });
+    }
+
+    console.log(`\n🎭 Sentiment Classification Request:`);
+    console.log(`  Text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+    console.log(`  Entity: "${entity}"`);
+    console.log(`  Labels: ${sentimentLabels.join(', ')}`);
+
+    // Create sentiment classifier instance with user's API key
+    const sentimentClassifier = new SentimentClassifier(apiKey);
+
+    // Classify sentiment
+    const result = await sentimentClassifier.classifySentiment(
+      text,
+      entity,
+      sentimentLabels,
+      description
+    );
+
+    console.log(`  Result: ${result.classification} (confidence: ${result.confidence}%)`);
+
+    res.json({
+      success: true,
+      text: result.text,
+      classification: result.classification,
+      confidence: result.confidence,
+      method: result.method,
+      reasoning: result.reasoning,
+      cached: result.cached || false
+    });
+
+  } catch (error) {
+    console.error('Error classifying sentiment:', error);
+    res.status(500).json({
+      error: 'Failed to classify sentiment',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * API endpoint for category classification
+ */
+app.post('/api/classify-category', async (req, res) => {
+  try {
+    const { text, categories, description = '', apiKey } = req.body;
+
+    // Validate required fields
+    if (!text) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+
+    if (!categories || !Array.isArray(categories) || categories.length === 0) {
+      return res.status(400).json({ error: 'Categories array is required and must not be empty' });
+    }
+
+    // Validate API key format
+    if (!apiKey || !validateApiKey(apiKey)) {
+      return res.status(400).json({
+        error: 'Valid OpenAI API key is required',
+        details: 'API key must start with "sk-" and be at least 20 characters long'
+      });
+    }
+
+    console.log(`\n📂 Category Classification Request:`);
+    console.log(`  Text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+    console.log(`  Categories: ${categories.join(', ')}`);
+
+    // Create category classifier instance with user's API key
+    const categoryClassifier = new CategoryClassifier(apiKey);
+
+    // Classify category
+    const result = await categoryClassifier.classifyCategory(
+      text,
+      categories,
+      description
+    );
+
+    console.log(`  Result: ${result.classification} (confidence: ${result.confidence}%)`);
+
+    res.json({
+      success: true,
+      text: result.text,
+      classification: result.classification,
+      confidence: result.confidence,
+      method: result.method,
+      reasoning: result.reasoning,
+      cached: result.cached || false
+    });
+
+  } catch (error) {
+    console.error('Error classifying category:', error);
+    res.status(500).json({
+      error: 'Failed to classify category',
       details: error.message
     });
   }
@@ -490,11 +676,24 @@ app.post('/api/upload-excel', upload.single('file'), async (req, res) => {
 });
 
 /**
- * API endpoint to process Google Sheets
+ * API endpoint to process Google Sheets (multi-mode support)
  */
 app.post('/api/process-google-sheet', async (req, res) => {
   try {
-    const { sheetUrl, columnRange, useLLM = true, sessionId = Date.now().toString(), sheetGid, apiKey } = req.body;
+    const {
+      sheetUrl,
+      columnRange,
+      mode = 'location',
+      useLLM = true,
+      sessionId = Date.now().toString(),
+      sheetGid,
+      apiKey,
+      // Mode-specific parameters
+      entity,
+      sentimentLabels,
+      categories,
+      description
+    } = req.body;
 
     if (!sheetUrl) {
       return res.status(400).json({ error: 'Sheet URL is required' });
@@ -555,8 +754,21 @@ app.post('/api/process-google-sheet', async (req, res) => {
 
     console.log(`\n📊 Extracted ${texts.length} texts from column range: ${columnRange || 'B (default)'}`);
 
-    // Get LLM extractor (user key or default)
-    const llmExtractor = getLLMExtractor(apiKey);
+    // Get appropriate classifier based on mode
+    let classifier;
+    if (mode === 'location') {
+      classifier = getLLMExtractor(apiKey);
+    } else if (mode === 'sentiment') {
+      if (!entity || !sentimentLabels) {
+        return res.status(400).json({ error: 'Entity and sentiment labels are required for sentiment mode' });
+      }
+      classifier = new SentimentClassifier(apiKey);
+    } else if (mode === 'category') {
+      if (!categories) {
+        return res.status(400).json({ error: 'Categories are required for category mode' });
+      }
+      classifier = new CategoryClassifier(apiKey);
+    }
 
     // Estimate processing time
     const estimate = estimateProcessingTime(texts, useLLM);
@@ -566,11 +778,12 @@ app.post('/api/process-google-sheet', async (req, res) => {
     sendProgressUpdate(sessionId, {
       type: 'started',
       total: texts.length,
-      estimatedTime: estimate.estimatedSeconds
+      estimatedTime: estimate.estimatedSeconds,
+      mode
     });
 
     // Process texts through parallel batch system
-    console.log(`\n📊 Processing Google Sheet with ${texts.length} rows...`);
+    console.log(`\n📊 Processing Google Sheet with ${texts.length} rows in ${mode} mode...`);
     console.log('═'.repeat(50));
 
     const startTime = Date.now();
@@ -583,8 +796,18 @@ app.post('/api/process-google-sheet', async (req, res) => {
       batchSize = 5; // Smaller batch for small datasets
     }
 
+    // Define processing function based on mode
+    let processFunction;
+    if (mode === 'location') {
+      processFunction = (text) => processLLMFirst(text, useLLM, classifier);
+    } else if (mode === 'sentiment') {
+      processFunction = (text) => classifier.classifySentiment(text, entity, sentimentLabels, description);
+    } else if (mode === 'category') {
+      processFunction = (text) => classifier.classifyCategory(text, categories, description);
+    }
+
     // Use parallel processing for better performance
-    const results = await processBatch(texts, (text) => processLLMFirst(text, useLLM, llmExtractor), {
+    const results = await processBatch(texts, processFunction, {
       batchSize,
       useLLM,
       onProgress: (progress) => {
@@ -610,11 +833,18 @@ app.post('/api/process-google-sheet', async (req, res) => {
       }
     });
 
-    // Count successes
+    // Count successes (mode-specific)
     let successCount = 0;
     results.forEach(result => {
-      if (hasLocationData(result.location)) {
-        successCount++;
+      if (mode === 'location') {
+        if (hasLocationData(result.location)) {
+          successCount++;
+        }
+      } else {
+        // For sentiment/category: success if classification is not error
+        if (result.classification && !result.classification.startsWith('Error:')) {
+          successCount++;
+        }
       }
     });
 
@@ -622,7 +852,10 @@ app.post('/api/process-google-sheet', async (req, res) => {
     const avgTime = Math.round(processingTime / texts.length);
 
     console.log('\n═'.repeat(50));
-    console.log(`✨ Sheet processing complete: ${successCount}/${texts.length} with locations`);
+    const successMessage = mode === 'location'
+      ? `✨ Sheet processing complete: ${successCount}/${texts.length} with locations`
+      : `✨ Sheet classification complete: ${successCount}/${texts.length} successfully classified`;
+    console.log(successMessage);
     console.log(`⏱️ Total time: ${processingTime}ms (avg: ${avgTime}ms/item)`);
 
     // Send completion notification
@@ -631,15 +864,17 @@ app.post('/api/process-google-sheet', async (req, res) => {
       total: texts.length,
       successful: successCount,
       successRate: ((successCount / results.length) * 100).toFixed(1),
-      totalTime: processingTime
+      totalTime: processingTime,
+      mode
     });
 
     res.json({
       success: true,
+      mode,
       processed: results.length,
       successful: successCount,
       successRate: ((successCount / results.length) * 100).toFixed(1),
-      llmEnabled: llmExtractor.enabled,
+      llmEnabled: classifier.enabled,
       processingTime,
       averageTime: avgTime,
       results
@@ -699,12 +934,17 @@ app.get('/api/status', (req, res) => {
     status: 'ok',
     version: '5.0',
     parser: 'location-parser-v5',
+    modes: ['location', 'sentiment', 'category'],
     features: {
+      locationExtraction: true,
+      sentimentClassification: true,
+      categoryClassification: true,
       conservativeExtraction: true,
       llmValidation: defaultLLMExtractor.enabled,
       twoPassSystem: true,
       blacklistEnabled: true,
-      userProvidedApiKey: true // Indicate support for user-provided keys
+      userProvidedApiKey: true,
+      multiModeSupport: true
     },
     cache: defaultLLMExtractor.getCacheStats()
   });

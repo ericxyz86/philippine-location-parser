@@ -44,7 +44,7 @@
   - [ ] 1.4 Create initial commit with PRD and task list: "feat: add PRD and task list for multi-mode classification"
   - [ ] 1.5 Push feature branch to remote: `git push -u origin feature/multi-mode-classification`
 
-- [ ] 2.0 Implement Backend Classification Modules
+- [x] 2.0 Implement Backend Classification Modules
   - [x] 2.1 Create `app/utils/sentiment-classifier.js` with class structure following `llm-extractor.js` pattern
   - [x] 2.2 Implement `buildSentimentPrompt(text, entity, sentimentLabels, description)` method with strict JSON response format
   - [x] 2.3 Implement `classifySentiment(text, entity, sentimentLabels, description)` method with OpenAI API integration
@@ -60,24 +60,24 @@
   - [x] 2.13 Export both classifiers as module.exports for server integration
 
 - [ ] 3.0 Add Backend API Endpoints and Routing
-  - [ ] 3.1 In `app/server-v5.js`, import SentimentClassifier and CategoryClassifier modules
-  - [ ] 3.2 Create `POST /api/classify-sentiment` endpoint accepting `{ text, entity, sentimentLabels[], description, apiKey }`
-  - [ ] 3.3 Add API key validation for sentiment endpoint (check format and presence)
-  - [ ] 3.4 Add input validation for sentiment endpoint (check required fields: entity, sentimentLabels)
-  - [ ] 3.5 Implement sentiment classification logic with user-provided API key
-  - [ ] 3.6 Return sentiment response: `{ success: true, text, classification, confidence, method }`
-  - [ ] 3.7 Add error handling for sentiment endpoint with user-friendly error messages
-  - [ ] 3.8 Create `POST /api/classify-category` endpoint accepting `{ text, categories[], description, apiKey }`
-  - [ ] 3.9 Add API key validation for category endpoint
-  - [ ] 3.10 Add input validation for category endpoint (check required field: categories)
-  - [ ] 3.11 Implement category classification logic with user-provided API key
-  - [ ] 3.12 Return category response: `{ success: true, text, classification, confidence, method }`
-  - [ ] 3.13 Add error handling for category endpoint with user-friendly error messages
-  - [ ] 3.14 Modify `POST /api/batch-parse` to accept `mode` parameter ("location" | "sentiment" | "category")
-  - [ ] 3.15 Add mode-specific routing logic in batch-parse endpoint (if sentiment: use SentimentClassifier, if category: use CategoryClassifier)
-  - [ ] 3.16 Pass mode-specific parameters (entity, sentimentLabels, categories, description) to classifiers
-  - [ ] 3.17 Modify `POST /api/process-google-sheet` to accept mode parameter and mode-specific fields
-  - [ ] 3.18 Update `/api/status` endpoint to include classification features in response
+  - [x] 3.1 In `app/server-v5.js`, import SentimentClassifier and CategoryClassifier modules
+  - [x] 3.2 Create `POST /api/classify-sentiment` endpoint accepting `{ text, entity, sentimentLabels[], description, apiKey }`
+  - [x] 3.3 Add API key validation for sentiment endpoint (check format and presence)
+  - [x] 3.4 Add input validation for sentiment endpoint (check required fields: entity, sentimentLabels)
+  - [x] 3.5 Implement sentiment classification logic with user-provided API key
+  - [x] 3.6 Return sentiment response: `{ success: true, text, classification, confidence, method }`
+  - [x] 3.7 Add error handling for sentiment endpoint with user-friendly error messages
+  - [x] 3.8 Create `POST /api/classify-category` endpoint accepting `{ text, categories[], description, apiKey }`
+  - [x] 3.9 Add API key validation for category endpoint
+  - [x] 3.10 Add input validation for category endpoint (check required field: categories)
+  - [x] 3.11 Implement category classification logic with user-provided API key
+  - [x] 3.12 Return category response: `{ success: true, text, classification, confidence, method }`
+  - [x] 3.13 Add error handling for category endpoint with user-friendly error messages
+  - [x] 3.14 Modify `POST /api/batch-parse` to accept `mode` parameter ("location" | "sentiment" | "category")
+  - [x] 3.15 Add mode-specific routing logic in batch-parse endpoint (if sentiment: use SentimentClassifier, if category: use CategoryClassifier)
+  - [x] 3.16 Pass mode-specific parameters (entity, sentimentLabels, categories, description) to classifiers
+  - [x] 3.17 Modify `POST /api/process-google-sheet` to accept mode parameter and mode-specific fields
+  - [x] 3.18 Update `/api/status` endpoint to include classification features in response
 
 - [ ] 4.0 Build Frontend Tab Navigation and UI Components
   - [ ] 4.1 In `app/index.html`, update page title to "Philippine Location Parser & Text Classifier"
