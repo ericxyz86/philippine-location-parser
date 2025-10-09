@@ -1,11 +1,15 @@
 /**
  * Philippine Location Parser v4 - Web Application
  * Enhanced UI with extraction statistics
+ * Multi-Mode System: Location, Sentiment, Category
  */
 
 let currentResults = [];
 let csvData = null;
 let uploadedExcelFile = null; // Store uploaded Excel file
+
+// Global mode state
+let currentMode = 'location'; // 'location' | 'sentiment' | 'category'
 
 // API Key Storage Key
 const API_KEY_STORAGE_KEY = 'location_parser_openai_key';
@@ -124,6 +128,141 @@ function toggleApiKeyVisibility() {
 }
 
 /**
+ * Set current mode and update UI
+ * @param {string} mode - 'location' | 'sentiment' | 'category'
+ */
+function setMode(mode) {
+    currentMode = mode;
+
+    // Update tab active states
+    document.getElementById('locationTab').classList.remove('active');
+    document.getElementById('sentimentTab').classList.remove('active');
+    document.getElementById('categoryTab').classList.remove('active');
+
+    if (mode === 'location') {
+        document.getElementById('locationTab').classList.add('active');
+    } else if (mode === 'sentiment') {
+        document.getElementById('sentimentTab').classList.add('active');
+    } else if (mode === 'category') {
+        document.getElementById('categoryTab').classList.add('active');
+    }
+
+    // Show/hide conditional fields
+    showConditionalFields(mode);
+
+    console.log(`Mode switched to: ${mode}`);
+}
+
+/**
+ * Show/hide conditional fields based on mode
+ * @param {string} mode - 'location' | 'sentiment' | 'category'
+ */
+function showConditionalFields(mode) {
+    const sentimentFields = document.getElementById('sentimentFields');
+    const categoryFields = document.getElementById('categoryFields');
+
+    // Hide all conditional fields first
+    sentimentFields.classList.remove('active');
+    categoryFields.classList.remove('active');
+
+    // Show relevant fields based on mode
+    if (mode === 'sentiment') {
+        sentimentFields.classList.add('active');
+    } else if (mode === 'category') {
+        categoryFields.classList.add('active');
+    }
+    // Location mode has no conditional fields
+}
+
+/**
+ * Get classification configuration based on current mode
+ * @returns {Object} Configuration object with mode-specific fields
+ */
+function getClassificationConfig() {
+    if (currentMode === 'sentiment') {
+        return {
+            mode: 'sentiment',
+            entity: document.getElementById('entityInput').value.trim(),
+            sentimentLabels: document.getElementById('sentimentLabels').value
+                .split(',')
+                .map(label => label.trim())
+                .filter(label => label.length > 0),
+            description: document.getElementById('sentimentDescription').value.trim()
+        };
+    } else if (currentMode === 'category') {
+        return {
+            mode: 'category',
+            categories: document.getElementById('categoriesInput').value
+                .split(',')
+                .map(cat => cat.trim())
+                .filter(cat => cat.length > 0),
+            description: document.getElementById('categoryDescription').value.trim()
+        };
+    } else {
+        return {
+            mode: 'location'
+        };
+    }
+}
+
+/**
+ * Validate classification inputs based on current mode
+ * @returns {Object} { valid: boolean, message: string }
+ */
+function validateClassificationInputs() {
+    if (currentMode === 'sentiment') {
+        const entity = document.getElementById('entityInput').value.trim();
+        const sentimentLabels = document.getElementById('sentimentLabels').value.trim();
+
+        if (!entity) {
+            return {
+                valid: false,
+                message: 'Please enter an entity to evaluate (e.g., "PLDT Home")'
+            };
+        }
+
+        if (!sentimentLabels) {
+            return {
+                valid: false,
+                message: 'Please enter sentiment labels (e.g., "Positive, Neutral, Negative")'
+            };
+        }
+
+        const labels = sentimentLabels.split(',').map(l => l.trim()).filter(l => l.length > 0);
+        if (labels.length < 2) {
+            return {
+                valid: false,
+                message: 'Please provide at least 2 sentiment labels separated by commas'
+            };
+        }
+
+        return { valid: true };
+    } else if (currentMode === 'category') {
+        const categories = document.getElementById('categoriesInput').value.trim();
+
+        if (!categories) {
+            return {
+                valid: false,
+                message: 'Please enter categories (e.g., "Billing, Technical Support, Network Issues")'
+            };
+        }
+
+        const cats = categories.split(',').map(c => c.trim()).filter(c => c.length > 0);
+        if (cats.length < 2) {
+            return {
+                valid: false,
+                message: 'Please provide at least 2 categories separated by commas'
+            };
+        }
+
+        return { valid: true };
+    }
+
+    // Location mode has no additional validation
+    return { valid: true };
+}
+
+/**
  * Detect sheets when Google Sheets URL is entered
  */
 async function detectGoogleSheets() {
@@ -214,6 +353,13 @@ async function processSheet() {
         return;
     }
 
+    // Validate classification inputs based on current mode
+    const validation = validateClassificationInputs();
+    if (!validation.valid) {
+        showError(validation.message);
+        return;
+    }
+
     const sheetUrl = document.getElementById('sheetUrl').value.trim();
     const columnRange = document.getElementById('columnRange').value.trim();
 
@@ -231,6 +377,9 @@ async function processSheet() {
 
     const sheetId = match[1];
     const exportUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+
+    // Get classification configuration
+    const config = getClassificationConfig();
 
     // Generate session ID for tracking progress
     const sessionId = Date.now().toString();
@@ -301,7 +450,8 @@ async function processSheet() {
                 sessionId: sessionId,
                 useLLM: true,
                 sheetGid: selectedSheet, // Add selected sheet gid
-                apiKey: getApiKey() // Include user's API key
+                apiKey: getApiKey(), // Include user's API key
+                ...config // Include mode-specific configuration
             })
         });
 
@@ -353,6 +503,13 @@ async function processText() {
         return;
     }
 
+    // Validate classification inputs based on current mode
+    const validation = validateClassificationInputs();
+    if (!validation.valid) {
+        showError(validation.message);
+        return;
+    }
+
     const textInput = document.getElementById('textInput').value.trim();
 
     if (!textInput) {
@@ -367,6 +524,9 @@ async function processText() {
         showError('Please enter valid text');
         return;
     }
+
+    // Get classification configuration
+    const config = getClassificationConfig();
 
     // Generate session ID for tracking progress
     const sessionId = Date.now().toString();
@@ -422,7 +582,8 @@ async function processText() {
                 texts: lines,
                 useLLM: true,
                 sessionId: sessionId,  // Include sessionId for progress tracking
-                apiKey: getApiKey() // Include user's API key
+                apiKey: getApiKey(), // Include user's API key
+                ...config // Include mode-specific configuration (mode, entity, sentimentLabels, categories, description)
             })
         });
 
@@ -470,17 +631,34 @@ function displayResults(results) {
         const item = document.createElement('div');
         item.className = 'result-item';
 
-        const hasLocation = hasLocationData(result.location);
-        const locationClass = hasLocation ? 'location-found' : 'location-none';
-        const locationDisplay = formatLocationDisplay(result);
+        if (currentMode === 'location') {
+            // Location extraction mode
+            const hasLocation = hasLocationData(result.location);
+            const locationClass = hasLocation ? 'location-found' : 'location-none';
+            const locationDisplay = formatLocationDisplay(result);
 
-        item.innerHTML = `
-            <div class="result-row">Row ${index + 1}</div>
-            <div class="result-text" title="${escapeHtml(result.text)}">${escapeHtml(result.text)}</div>
-            <div class="result-location ${locationClass}">
-                📍 ${locationDisplay}
-            </div>
-        `;
+            item.innerHTML = `
+                <div class="result-row">Row ${index + 1}</div>
+                <div class="result-text" title="${escapeHtml(result.text)}">${escapeHtml(result.text)}</div>
+                <div class="result-location ${locationClass}">
+                    📍 ${locationDisplay}
+                </div>
+            `;
+        } else if (currentMode === 'sentiment' || currentMode === 'category') {
+            // Classification modes (sentiment or category)
+            const classification = result.classification || 'Not classified';
+            const hasClassification = result.classification && !result.classification.startsWith('Error:');
+            const classificationClass = hasClassification ? 'location-found' : 'location-none';
+            const icon = currentMode === 'sentiment' ? '💬' : '📁';
+
+            item.innerHTML = `
+                <div class="result-row">Row ${index + 1}</div>
+                <div class="result-text" title="${escapeHtml(result.text)}">${escapeHtml(result.text)}</div>
+                <div class="result-location ${classificationClass}">
+                    ${icon} ${escapeHtml(classification)}
+                </div>
+            `;
+        }
 
         resultsSection.appendChild(item);
     });
@@ -498,12 +676,28 @@ function updateStatistics(data) {
     // Total processed
     document.getElementById('totalProcessed').textContent = data.processed;
 
-    // With locations
-    const locationsFound = data.successful;
-    document.getElementById('locationsFound').textContent = locationsFound;
+    // Successful results (locations found or classifications completed)
+    const successful = data.successful;
+    document.getElementById('locationsFound').textContent = successful;
 
-    // Without locations
-    document.getElementById('noLocation').textContent = data.processed - locationsFound;
+    // Update label based on mode
+    const successLabel = document.querySelector('#locationsFound').parentElement.querySelector('.stat-label');
+    if (currentMode === 'location') {
+        successLabel.textContent = 'With Locations';
+    } else if (currentMode === 'sentiment' || currentMode === 'category') {
+        successLabel.textContent = 'Classified';
+    }
+
+    // Without locations/classifications
+    document.getElementById('noLocation').textContent = data.processed - successful;
+
+    // Update "no results" label based on mode
+    const noResultLabel = document.querySelector('#noLocation').parentElement.querySelector('.stat-label');
+    if (currentMode === 'location') {
+        noResultLabel.textContent = 'No Location';
+    } else if (currentMode === 'sentiment' || currentMode === 'category') {
+        noResultLabel.textContent = 'Not Classified';
+    }
 
     // Success rate
     const successRate = data.successRate || '0';
