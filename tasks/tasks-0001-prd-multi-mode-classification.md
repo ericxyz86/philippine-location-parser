@@ -45,19 +45,19 @@
   - [ ] 1.5 Push feature branch to remote: `git push -u origin feature/multi-mode-classification`
 
 - [ ] 2.0 Implement Backend Classification Modules
-  - [ ] 2.1 Create `app/utils/sentiment-classifier.js` with class structure following `llm-extractor.js` pattern
-  - [ ] 2.2 Implement `buildSentimentPrompt(text, entity, sentimentLabels, description)` method with strict JSON response format
-  - [ ] 2.3 Implement `classifySentiment(text, entity, sentimentLabels, description)` method with OpenAI API integration
-  - [ ] 2.4 Implement `validateSentimentClassification(llmResponse, allowedLabels)` with case-insensitive exact matching
-  - [ ] 2.5 Add retry logic (max 2 retries) for invalid LLM responses in sentiment classifier
-  - [ ] 2.6 Add caching support using text + entity + labels as cache key
-  - [ ] 2.7 Create `app/utils/category-classifier.js` with class structure following sentiment classifier pattern
-  - [ ] 2.8 Implement `buildCategoryPrompt(text, categories, description)` method with strict JSON response format
-  - [ ] 2.9 Implement `classifyCategory(text, categories, description)` method with OpenAI API integration
-  - [ ] 2.10 Implement `validateCategoryClassification(llmResponse, allowedCategories)` with case-insensitive exact matching
-  - [ ] 2.11 Add retry logic (max 2 retries) for invalid LLM responses in category classifier
-  - [ ] 2.12 Add caching support using text + categories as cache key
-  - [ ] 2.13 Export both classifiers as module.exports for server integration
+  - [x] 2.1 Create `app/utils/sentiment-classifier.js` with class structure following `llm-extractor.js` pattern
+  - [x] 2.2 Implement `buildSentimentPrompt(text, entity, sentimentLabels, description)` method with strict JSON response format
+  - [x] 2.3 Implement `classifySentiment(text, entity, sentimentLabels, description)` method with OpenAI API integration
+  - [x] 2.4 Implement `validateSentimentClassification(llmResponse, allowedLabels)` with case-insensitive exact matching
+  - [x] 2.5 Add retry logic (max 2 retries) for invalid LLM responses in sentiment classifier
+  - [x] 2.6 Add caching support using text + entity + labels as cache key
+  - [x] 2.7 Create `app/utils/category-classifier.js` with class structure following sentiment classifier pattern
+  - [x] 2.8 Implement `buildCategoryPrompt(text, categories, description)` method with strict JSON response format
+  - [x] 2.9 Implement `classifyCategory(text, categories, description)` method with OpenAI API integration
+  - [x] 2.10 Implement `validateCategoryClassification(llmResponse, allowedCategories)` with case-insensitive exact matching
+  - [x] 2.11 Add retry logic (max 2 retries) for invalid LLM responses in category classifier
+  - [x] 2.12 Add caching support using text + categories as cache key
+  - [x] 2.13 Export both classifiers as module.exports for server integration
 
 - [ ] 3.0 Add Backend API Endpoints and Routing
   - [ ] 3.1 In `app/server-v5.js`, import SentimentClassifier and CategoryClassifier modules
