@@ -59,6 +59,123 @@ function getLLMExtractor(userApiKey) {
   return new LLMExtractor(null); // Creates disabled extractor
 }
 
+/**
+ * Merge hint strings while avoiding duplicates.
+ */
+function mergeHintStrings(existingHint, additionalHints = []) {
+  const parts = new Set();
+
+  if (existingHint) {
+    existingHint.split(/;\s*/).forEach(part => {
+      const trimmed = part.trim();
+      if (trimmed) {
+        parts.add(trimmed);
+      }
+    });
+  }
+
+  additionalHints.forEach(hintValue => {
+    if (!hintValue) return;
+    hintValue.split(/;\s*/).forEach(part => {
+      const trimmed = part.trim();
+      if (trimmed) {
+        parts.add(trimmed);
+      }
+    });
+  });
+
+  if (parts.size === 0) {
+    return '';
+  }
+
+  return Array.from(parts.values()).join('; ');
+}
+
+/**
+ * Extract sanitized category label and hint text.
+ */
+function extractCategoryDetails(rawCategory) {
+  if (rawCategory == null) {
+    return { label: '', hint: '' };
+  }
+
+  const categoryString = typeof rawCategory === 'string'
+    ? rawCategory
+    : String(rawCategory);
+
+  const contextParts = [];
+  let sanitized = categoryString.replace(/\(([^)]+)\)/g, (_, group) => {
+    const hintText = group.replace(/\s+/g, ' ').trim();
+    if (hintText) {
+      contextParts.push(hintText);
+    }
+    return '';
+  });
+
+  sanitized = sanitized
+    .replace(/^[\s]*[-–—•]+\s*/, '')
+    .replace(/^[\s]*\d+\)\s*/, '')
+    .replace(/^[\s]*\d+\.\s*/, '')
+    .replace(/^[\s]*[IVXLC]+\.\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/:\s*$/, '');
+
+  return {
+    label: sanitized,
+    hint: contextParts.join('; ')
+  };
+}
+
+/**
+ * Sanitize category configuration (labels + hints).
+ */
+function sanitizeCategoryConfig(rawCategories, providedHints = {}) {
+  const result = {
+    categories: [],
+    hints: {}
+  };
+
+  const candidateCategories = Array.isArray(rawCategories) ? rawCategories : [];
+  const hintMap = providedHints && typeof providedHints === 'object' ? providedHints : {};
+
+  candidateCategories.forEach(rawCategory => {
+    const { label, hint } = extractCategoryDetails(rawCategory);
+    if (!label) {
+      return;
+    }
+
+    if (!result.categories.includes(label)) {
+      result.categories.push(label);
+    }
+
+    const directHint = hintMap[rawCategory] || hintMap[label];
+    const merged = mergeHintStrings(result.hints[label], [hint, directHint]);
+    if (merged) {
+      result.hints[label] = merged;
+    }
+  });
+
+  Object.entries(hintMap).forEach(([rawKey, value]) => {
+    const { label: sanitizedLabel, hint: derivedHint } = extractCategoryDetails(rawKey);
+
+    if (!sanitizedLabel) {
+      return;
+    }
+
+    if (!result.categories.includes(sanitizedLabel)) {
+      result.categories.push(sanitizedLabel);
+    }
+
+    const merged = mergeHintStrings(result.hints[sanitizedLabel], [derivedHint, value]);
+    if (merged) {
+      result.hints[sanitizedLabel] = merged;
+    }
+  });
+
+  return result;
+}
+
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -216,8 +333,11 @@ app.post('/api/batch-parse', async (req, res) => {
       entity,
       sentimentLabels,
       categories,
+      categoryHints = {},
       description
     } = req.body;
+
+    let sanitizedCategoryConfig = null;
 
     if (!texts || !Array.isArray(texts)) {
       return res.status(400).json({ error: 'Texts array is required' });
@@ -234,7 +354,8 @@ app.post('/api/batch-parse', async (req, res) => {
     }
 
     if (mode === 'category') {
-      if (!categories || !Array.isArray(categories) || categories.length === 0) {
+      sanitizedCategoryConfig = sanitizeCategoryConfig(categories, categoryHints);
+      if (sanitizedCategoryConfig.categories.length === 0) {
         return res.status(400).json({ error: 'Categories array is required for category mode' });
       }
     }
@@ -278,7 +399,14 @@ app.post('/api/batch-parse', async (req, res) => {
     } else if (mode === 'sentiment') {
       processFunction = (text) => classifier.classifySentiment(text, entity, sentimentLabels, description);
     } else if (mode === 'category') {
-      processFunction = (text) => classifier.classifyCategory(text, categories, description);
+      const activeCategoryConfig = sanitizedCategoryConfig || sanitizeCategoryConfig(categories, categoryHints);
+      console.log('  Categories:', activeCategoryConfig.categories.join(', '));
+      processFunction = (text) => classifier.classifyCategory(
+        text,
+        activeCategoryConfig.categories,
+        description,
+        activeCategoryConfig.hints
+      );
     }
 
     if (parallel && texts.length > 1) {
@@ -507,14 +635,16 @@ app.post('/api/classify-sentiment', async (req, res) => {
  */
 app.post('/api/classify-category', async (req, res) => {
   try {
-    const { text, categories, description = '', apiKey } = req.body;
+    const { text, categories, categoryHints = {}, description = '', apiKey } = req.body;
 
     // Validate required fields
     if (!text) {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    if (!categories || !Array.isArray(categories) || categories.length === 0) {
+    const sanitizedCategoryConfig = sanitizeCategoryConfig(categories, categoryHints);
+
+    if (sanitizedCategoryConfig.categories.length === 0) {
       return res.status(400).json({ error: 'Categories array is required and must not be empty' });
     }
 
@@ -528,7 +658,7 @@ app.post('/api/classify-category', async (req, res) => {
 
     console.log(`\n📂 Category Classification Request:`);
     console.log(`  Text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
-    console.log(`  Categories: ${categories.join(', ')}`);
+    console.log(`  Categories: ${sanitizedCategoryConfig.categories.join(', ')}`);
 
     // Create category classifier instance with user's API key
     const categoryClassifier = new CategoryClassifier(apiKey);
@@ -536,8 +666,9 @@ app.post('/api/classify-category', async (req, res) => {
     // Classify category
     const result = await categoryClassifier.classifyCategory(
       text,
-      categories,
-      description
+      sanitizedCategoryConfig.categories,
+      description,
+      sanitizedCategoryConfig.hints
     );
 
     console.log(`  Result: ${result.classification} (confidence: ${result.confidence}%)`);
@@ -692,8 +823,11 @@ app.post('/api/process-google-sheet', async (req, res) => {
       entity,
       sentimentLabels,
       categories,
+      categoryHints = {},
       description
     } = req.body;
+
+    let sanitizedCategoryConfig = null;
 
     if (!sheetUrl) {
       return res.status(400).json({ error: 'Sheet URL is required' });
@@ -764,7 +898,8 @@ app.post('/api/process-google-sheet', async (req, res) => {
       }
       classifier = new SentimentClassifier(apiKey);
     } else if (mode === 'category') {
-      if (!categories) {
+      sanitizedCategoryConfig = sanitizeCategoryConfig(categories, categoryHints);
+      if (sanitizedCategoryConfig.categories.length === 0) {
         return res.status(400).json({ error: 'Categories are required for category mode' });
       }
       classifier = new CategoryClassifier(apiKey);
@@ -803,7 +938,14 @@ app.post('/api/process-google-sheet', async (req, res) => {
     } else if (mode === 'sentiment') {
       processFunction = (text) => classifier.classifySentiment(text, entity, sentimentLabels, description);
     } else if (mode === 'category') {
-      processFunction = (text) => classifier.classifyCategory(text, categories, description);
+      const activeCategoryConfig = sanitizedCategoryConfig || sanitizeCategoryConfig(categories, categoryHints);
+      console.log('  Categories:', activeCategoryConfig.categories.join(', '));
+      processFunction = (text) => classifier.classifyCategory(
+        text,
+        activeCategoryConfig.categories,
+        description,
+        activeCategoryConfig.hints
+      );
     }
 
     // Use parallel processing for better performance

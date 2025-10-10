@@ -188,6 +188,91 @@
             margin-top: 5px;
         }
 
+        .category-distribution-card {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            text-align: left;
+            grid-column: span 2;
+        }
+
+        .category-distribution-card .stat-label {
+            margin-bottom: 6px;
+            text-align: left;
+        }
+
+        .category-distribution {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .category-distribution-empty {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .category-distribution-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .category-distribution-label {
+            flex: 0 0 120px;
+            font-size: 12px;
+            color: #444;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .category-distribution-bar-wrapper {
+            flex: 1;
+            height: 8px;
+            background: #e1e4e8;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .category-distribution-bar {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .category-distribution-count {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .category-distribution-count span {
+            display: block;
+            font-weight: 400;
+            color: #777;
+            font-size: 11px;
+        }
+
+        .category-distribution-summary {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+            display: none;
+        }
+
+        .distribution-scope-select {
+            padding: 4px 8px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-size: 12px;
+            background: #fff;
+            color: #333;
+        }
+
         .status-section {
             margin-top: 30px;
             padding: 20px;
@@ -474,6 +559,197 @@
                 border-left: 3px solid #667eea;
             }
         }
+
+        /* Mode Results Container */
+        .mode-results-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .mode-results-container.single-panel {
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+
+        /* Mode Panel Styles */
+        .mode-panel {
+            border: 2px solid #e1e4e8;
+            border-radius: 12px;
+            overflow: hidden;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .mode-panel.hidden {
+            display: none;
+        }
+
+        .mode-panel.visible {
+            display: block;
+        }
+
+        .mode-panel.active {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .mode-panel.processing {
+            border-color: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        .mode-panel.completed {
+            border-color: #28a745;
+        }
+
+        .mode-panel.error {
+            border-color: #dc3545;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2); }
+            50% { box-shadow: 0 4px 20px rgba(40, 167, 69, 0.4); }
+            100% { box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2); }
+        }
+
+        /* Mode Panel Header */
+        .mode-panel-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e1e4e8;
+        }
+
+        .mode-panel-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .mode-status-badge {
+            background: #6c757d;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .mode-status-badge.active {
+            background: #007bff;
+        }
+
+        .mode-status-badge.processing {
+            background: #28a745;
+        }
+
+        .mode-status-badge.completed {
+            background: #28a745;
+        }
+
+        .mode-status-badge.error {
+            background: #dc3545;
+        }
+
+        .mode-clear-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .mode-clear-btn:hover {
+            background: #c82333;
+        }
+
+        /* Mode-specific sections */
+        .mode-stats-panel {
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .mode-status-section {
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #e1e4e8;
+        }
+
+        .mode-results-section {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .mode-download-section {
+            padding: 20px;
+            background: #f0f7ff;
+            border-top: 1px solid #e1e4e8;
+        }
+
+        /* Processing time display */
+        .processing-time {
+            font-size: 12px;
+            color: #666;
+            margin-left: auto;
+        }
+
+        /* Responsive Design for Mode Panels */
+        @media (max-width: 768px) {
+            .mode-results-container {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .category-distribution-label {
+                flex-basis: 90px;
+            }
+
+            .category-distribution-count {
+                min-width: 50px;
+            }
+            
+            .mode-panel {
+                min-height: auto;
+            }
+            
+            .mode-panel-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .mode-panel-header h3 {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .mode-results-container .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 10px;
+            }
+            
+            .mode-results-container .stat-card {
+                padding: 10px;
+            }
+            
+            .mode-results-container .stat-number {
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -511,94 +787,7 @@
                 </div>
             </div>
 
-            <!-- Tab Navigation -->
-            <div class="tab-navigation">
-                <button class="tab active" id="locationTab" onclick="setMode('location')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                        <circle cx="12" cy="10" r="3"></circle>
-                    </svg>
-                    Location Extraction
-                </button>
-                <button class="tab" id="sentimentTab" onclick="setMode('sentiment')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-                        <line x1="9" y1="9" x2="9.01" y2="9"></line>
-                        <line x1="15" y1="9" x2="15.01" y2="9"></line>
-                    </svg>
-                    Sentiment Classification
-                </button>
-                <button class="tab" id="categoryTab" onclick="setMode('category')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    Category Classification
-                </button>
-            </div>
-
-            <!-- Conditional Fields for Sentiment Mode -->
-            <div class="conditional-fields" id="sentimentFields">
-                <h3>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-                        <line x1="9" y1="9" x2="9.01" y2="9"></line>
-                        <line x1="15" y1="9" x2="15.01" y2="9"></line>
-                    </svg>
-                    Sentiment Classification Settings
-                </h3>
-                <div class="input-group">
-                    <label for="sentimentDescription">Classification Description (Optional)</label>
-                    <input type="text" id="sentimentDescription"
-                           placeholder="e.g., Social media sentiment toward telecom services"
-                           style="width: 100%; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; margin-bottom: 10px;">
-                    <div class="help-text">Provide context for the classification task</div>
-                </div>
-                <div class="input-group">
-                    <label for="entityInput">Entity to Evaluate (Required) *</label>
-                    <input type="text" id="entityInput"
-                           placeholder="e.g., PLDT Home, Smart Communications, Globe Telecom"
-                           required
-                           style="width: 100%; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; margin-bottom: 10px;">
-                    <div class="help-text">Enter the entity/brand/topic to evaluate sentiment toward (supports multiple entities separated by commas)</div>
-                </div>
-                <div class="input-group">
-                    <label for="sentimentLabels">Sentiment Labels (Required) *</label>
-                    <textarea id="sentimentLabels"
-                              placeholder="Positive, Neutral, Negative"
-                              required
-                              style="width: 100%; min-height: 80px; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; resize: vertical;"></textarea>
-                    <div class="help-text">Enter sentiment labels separated by commas (e.g., "Positive, Neutral, Negative" or "Very Satisfied, Satisfied, Neutral, Dissatisfied, Very Dissatisfied")</div>
-                </div>
-            </div>
-
-            <!-- Conditional Fields for Category Mode -->
-            <div class="conditional-fields" id="categoryFields">
-                <h3>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    Category Classification Settings
-                </h3>
-                <div class="input-group">
-                    <label for="categoryDescription">Classification Description (Optional)</label>
-                    <input type="text" id="categoryDescription"
-                           placeholder="e.g., Customer service complaint categorization"
-                           style="width: 100%; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; margin-bottom: 10px;">
-                    <div class="help-text">Provide context for the classification task</div>
-                </div>
-                <div class="input-group">
-                    <label for="categoriesInput">Categories (Required) *</label>
-                    <textarea id="categoriesInput"
-                              placeholder="Billing Issue, Technical Support, Network Problem, Account Management, Product Inquiry, Complaint, Feedback"
-                              required
-                              style="width: 100%; min-height: 100px; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; resize: vertical;"></textarea>
-                    <div class="help-text">Enter categories separated by commas (no limit on number of categories)</div>
-                </div>
-            </div>
-
-            <!-- API Key Settings Section -->
+            <!-- API Key Settings (Global) -->
             <div class="input-group" style="background: #ffebee; border: 2px solid #f44336; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
                 <div style="display: flex; align-items: center; margin-bottom: 10px;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d32f2f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
@@ -648,6 +837,96 @@
                 </div>
             </div>
 
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab active" id="locationTab" onclick="setMode('location')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    Location Extraction
+                </button>
+                <button class="tab" id="sentimentTab" onclick="setMode('sentiment')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                        <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                        <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                    </svg>
+                    Sentiment Classification
+                </button>
+                <button class="tab" id="categoryTab" onclick="setMode('category')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Category Classification
+                </button>
+            </div>
+
+            <!-- Conditional Fields for Sentiment Mode -->
+            <div class="conditional-fields" id="sentimentFields">
+                <h3>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                        <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                        <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                    </svg>
+                    Sentiment Classification Settings
+                </h3>
+                <div class="input-group">
+                    <label for="sentimentDescription">Classification Description (Optional)</label>
+                    <input type="text" id="sentimentDescription"
+                           autocomplete="new-password"
+                           data-form-type="other"
+                           placeholder="e.g., Social media sentiment toward telecom services"
+                           style="width: 100%; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; margin-bottom: 10px;">
+                    <div class="help-text">Provide context for the classification task</div>
+                </div>
+                <div class="input-group">
+                    <label for="entityInput">Entity to Evaluate (Required) *</label>
+                    <input type="text" id="entityInput"
+                           placeholder="e.g., PLDT Home, Smart Communications, Globe Telecom"
+                           required
+                           style="width: 100%; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; margin-bottom: 10px;">
+                    <div class="help-text">Enter the entity/brand/topic to evaluate sentiment toward (supports multiple entities separated by commas)</div>
+                </div>
+                <div class="input-group">
+                    <label for="sentimentLabels">Sentiment Labels (Required) *</label>
+                    <textarea id="sentimentLabels"
+                              placeholder="Positive, Neutral, Negative"
+                              required
+                              style="width: 100%; min-height: 80px; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; resize: vertical;">Positive, Neutral, Negative</textarea>
+                    <div class="help-text">Enter sentiment labels separated by commas (e.g., "Positive, Neutral, Negative" or "Very Satisfied, Satisfied, Neutral, Dissatisfied, Very Dissatisfied")</div>
+                </div>
+            </div>
+
+            <!-- Conditional Fields for Category Mode -->
+            <div class="conditional-fields" id="categoryFields">
+                <h3>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Category Classification Settings
+                </h3>
+                <div class="input-group">
+                    <label for="categoryDescription">Classification Description (Optional)</label>
+                    <input type="text" id="categoryDescription"
+                           autocomplete="new-password"
+                           data-form-type="other"
+                           placeholder="e.g., Telco complaint categories"
+                           style="width: 100%; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; margin-bottom: 10px;">
+                    <div class="help-text">Provide context for the classification task</div>
+                </div>
+                    <div class="input-group">
+                    <label for="categoriesInput">Categories (Required) *</label>
+                    <textarea id="categoriesInput"
+                              placeholder="e.g., Billing Issue, Technical Support, Network Problem, Account Management, Product Inquiry, Complaint, Feedback"
+                              required
+                              style="width: 100%; min-height: 100px; padding: 12px 16px; border: 2px solid #b3d9ff; border-radius: 8px; font-size: 14px; resize: vertical;"></textarea>
+            <div class="help-text">Enter categories separated by commas (no limit on number of categories)</div>
+        </div>
+    </div>
             <div class="input-section">
                 <div class="input-group">
                     <label for="sheetUrl">Google Sheets URL</label>
@@ -730,80 +1009,205 @@
                 </div>
             </div>
 
-            <!-- Statistics Panel -->
-            <div class="stats-panel" id="statsPanel">
-                <h3>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
-                        <line x1="12" y1="20" x2="12" y2="10"></line>
-                        <line x1="18" y1="20" x2="18" y2="4"></line>
-                        <line x1="6" y1="20" x2="6" y2="16"></line>
-                    </svg>
-                    Extraction Statistics
-                </h3>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-number" id="totalProcessed">0</div>
-                        <div class="stat-label">Total Rows</div>
+            <!-- Mode Results Container -->
+            <div class="mode-results-container" id="modeResultsContainer">
+                
+                <!-- Location Results Panel -->
+                <div class="mode-panel" id="locationPanel">
+                    <div class="mode-panel-header">
+                        <h3>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            Location Extraction
+                            <span class="mode-status-badge" id="locationStatusBadge">Inactive</span>
+                        </h3>
+                        <button class="mode-clear-btn" onclick="clearModeResults('location')" style="display:none;">
+                            Clear Results
+                        </button>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="locationsFound">0</div>
-                        <div class="stat-label">With Locations</div>
-                        <div class="stat-percentage" id="successRate">0%</div>
+                    
+                    <div class="mode-stats-panel" id="locationStatsPanel">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-number" id="locationTotalProcessed">0</div>
+                                <div class="stat-label">Total Rows</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="locationLocationsFound">0</div>
+                                <div class="stat-label">With Locations</div>
+                                <div class="stat-percentage" id="locationSuccessRate">0%</div>
+                            </div>
+                            <div class="stat-card category-distribution-card location-distribution-card">
+                                <div class="stat-label" style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span id="locationScopeLabel">Top Cities</span>
+                                    <select id="locationScopeSelect" class="distribution-scope-select">
+                                        <option value="region">Regions</option>
+                                        <option value="province">Provinces</option>
+                                        <option value="city" selected>Cities</option>
+                                        <option value="barangay">Barangays</option>
+                                    </select>
+                                </div>
+                                <div class="category-distribution" id="locationDistribution">
+                                    <div class="category-distribution-empty">No city data yet</div>
+                                </div>
+                                <div class="category-distribution-summary" id="locationMissingInfo"></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="noLocation">0</div>
-                        <div class="stat-label">No Location</div>
+                    
+                    <div class="mode-status-section" id="locationStatusSection">
+                        <div class="status-header">
+                            <div class="spinner status-icon" id="locationStatusIcon"></div>
+                            <h3 id="locationStatusTitle">Ready</h3>
+                            <span class="processing-time" id="locationProcessingTime"></span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="locationProgressBar" style="width: 0%"></div>
+                        </div>
+                        <div class="status-message" id="locationStatusMessage">Ready to process</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="avgConfidence">-</div>
-                        <div class="stat-label">Avg. Confidence</div>
+                    
+                    <div class="mode-results-section" id="locationResultsSection"></div>
+                    
+                    <div class="mode-download-section" id="locationDownloadSection" style="display:none;">
+                        <div class="download-options">
+                            <label style="font-weight: 600; color: #333; margin-bottom: 10px; display: block;">
+                                Export Format:
+                            </label>
+                            <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="radio" name="locationExportFormat" value="single" checked style="margin-right: 8px;">
+                                    <span>Single Column</span>
+                                </label>
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="radio" name="locationExportFormat" value="multiple" style="margin-right: 8px;">
+                                    <span>Multiple Columns</span>
+                                </label>
+                            </div>
+                        </div>
+                        <button class="btn-primary" onclick="downloadModeCSV('location')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                            Download Location Results
+                        </button>
                     </div>
                 </div>
-            </div>
-
-            <div class="status-section" id="statusSection">
-                <div class="status-header">
-                    <div class="spinner status-icon" id="statusIcon"></div>
-                    <h3 id="statusTitle">Processing...</h3>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressBar" style="width: 0%"></div>
-                </div>
-                <div class="status-message" id="statusMessage">Initializing...</div>
-                <div class="results-section" id="resultsSection"></div>
-            </div>
-
-            <div id="downloadGroup" style="display:none; margin-top: 20px;">
-                <div style="background: #f0f7ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                    <label style="font-weight: 600; color: #333; margin-bottom: 10px; display: block;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                        </svg>
-                        Export Format:
-                    </label>
-                    <div style="display: flex; gap: 20px; margin-bottom: 15px;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="exportFormat" value="single" checked style="margin-right: 8px;">
-                            <span>Single Column (Region: X, Province: Y, ...)</span>
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="exportFormat" value="multiple" style="margin-right: 8px;">
-                            <span>Multiple Columns (Region | Province | City | Barangay)</span>
-                        </label>
+                
+                <!-- Sentiment Results Panel -->
+                <div class="mode-panel" id="sentimentPanel">
+                    <div class="mode-panel-header">
+                        <h3>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                            </svg>
+                            Sentiment Classification
+                            <span class="mode-status-badge" id="sentimentStatusBadge">Inactive</span>
+                        </h3>
+                        <button class="mode-clear-btn" onclick="clearModeResults('sentiment')" style="display:none;">
+                            Clear Results
+                        </button>
+                    </div>
+                    
+                    <div class="mode-stats-panel" id="sentimentStatsPanel">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-number" id="sentimentTotalProcessed">0</div>
+                                <div class="stat-label">Total Rows</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="sentimentClassified">0</div>
+                                <div class="stat-label">Classified</div>
+                                <div class="stat-percentage" id="sentimentSuccessRate">0%</div>
+                            </div>
+                            <div class="stat-card category-distribution-card sentiment-distribution-card">
+                                <div class="stat-label">Top Sentiments</div>
+                                <div class="category-distribution" id="sentimentDistribution">
+                                    <div class="category-distribution-empty">No data yet</div>
+                                </div>
+                                <div class="category-distribution-summary" id="sentimentUnclassifiedInfo"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mode-status-section" id="sentimentStatusSection">
+                        <div class="status-header">
+                            <div class="spinner status-icon" id="sentimentStatusIcon"></div>
+                            <h3 id="sentimentStatusTitle">Ready</h3>
+                            <span class="processing-time" id="sentimentProcessingTime"></span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="sentimentProgressBar" style="width: 0%"></div>
+                        </div>
+                        <div class="status-message" id="sentimentStatusMessage">Ready to process</div>
+                    </div>
+                    
+                    <div class="mode-results-section" id="sentimentResultsSection"></div>
+                    
+                    <div class="mode-download-section" id="sentimentDownloadSection" style="display:none;">
+                        <button class="btn-primary" onclick="downloadModeCSV('sentiment')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                            Download Sentiment Results
+                        </button>
                     </div>
                 </div>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="downloadCSV()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        Download Results as CSV
-                    </button>
+                
+                <!-- Category Results Panel -->
+                <div class="mode-panel" id="categoryPanel">
+                    <div class="mode-panel-header">
+                        <h3>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            Category Classification
+                            <span class="mode-status-badge" id="categoryStatusBadge">Inactive</span>
+                        </h3>
+                        <button class="mode-clear-btn" onclick="clearModeResults('category')" style="display:none;">
+                            Clear Results
+                        </button>
+                    </div>
+                    
+                    <div class="mode-stats-panel" id="categoryStatsPanel">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-number" id="categoryTotalProcessed">0</div>
+                                <div class="stat-label">Total Rows</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="categoryClassified">0</div>
+                                <div class="stat-label">Classified</div>
+                                <div class="stat-percentage" id="categorySuccessRate">0%</div>
+                            </div>
+                            <div class="stat-card category-distribution-card">
+                                <div class="stat-label">Top Categories</div>
+                                <div class="category-distribution" id="categoryDistribution">
+                                    <div class="category-distribution-empty">No data yet</div>
+                                </div>
+                                <div class="category-distribution-summary" id="categoryUnclassifiedInfo"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mode-status-section" id="categoryStatusSection">
+                        <div class="status-header">
+                            <div class="spinner status-icon" id="categoryStatusIcon"></div>
+                            <h3 id="categoryStatusTitle">Ready</h3>
+                            <span class="processing-time" id="categoryProcessingTime"></span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="categoryProgressBar" style="width: 0%"></div>
+                        </div>
+                        <div class="status-message" id="categoryStatusMessage">Ready to process</div>
+                    </div>
+                    
+                    <div class="mode-results-section" id="categoryResultsSection"></div>
+                    
+                    <div class="mode-download-section" id="categoryDownloadSection" style="display:none;">
+                        <button class="btn-primary" onclick="downloadModeCSV('category')" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                            Download Category Results
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -814,6 +1218,6 @@
         </div>
     </div>
 
-    <script src="app-v4.js"></script>
+    <script src="app-v4.js?v=20251009005"></script>
 </body>
 </html>

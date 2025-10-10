@@ -25,9 +25,10 @@ class CategoryClassifier {
    * @param {string} text - Text to classify
    * @param {string[]} categories - Allowed categories (e.g., ["Billing", "Technical Support", "Network Issues"])
    * @param {string} description - Classification description for context
+   * @param {Object} categoryHints - Optional mapping of category labels to descriptive hints
    * @returns {Object} Classification result
    */
-  async classifyCategory(text, categories, description = '') {
+  async classifyCategory(text, categories, description = '', categoryHints = {}) {
     if (!this.enabled) {
       return {
         text,
@@ -50,7 +51,7 @@ class CategoryClassifier {
     }
 
     // Check cache first
-    const cacheKey = this.generateCacheKey(text, categories);
+    const cacheKey = this.generateCacheKey(text, categories, categoryHints);
     if (this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
       return { ...cached, cached: true };
@@ -62,7 +63,7 @@ class CategoryClassifier {
 
     while (attempt <= this.maxRetries) {
       try {
-        const prompt = this.buildCategoryPrompt(text, categories, description, attempt);
+        const prompt = this.buildCategoryPrompt(text, categories, description, attempt, categoryHints);
         const response = await this.callGPT4oMini(prompt);
 
         // Validate the classification
@@ -117,10 +118,25 @@ class CategoryClassifier {
   /**
    * Build category classification prompt
    */
-  buildCategoryPrompt(text, categories, description, retryAttempt = 0) {
+  buildCategoryPrompt(text, categories, description, retryAttempt = 0, categoryHints = {}) {
     const strictnessNote = retryAttempt > 0
       ? '\n\n⚠️ CRITICAL: Your previous response was invalid. You MUST return EXACTLY one of the allowed categories.'
       : '';
+
+    const allowedCategoriesList = categories.map(category => `- ${category}`).join('\n');
+    const hintEntries = categories
+      .map(category => {
+        const hint = categoryHints && categoryHints[category];
+        if (hint) {
+          return `- ${category}: ${hint}`;
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    const hintSection = hintEntries.length > 0
+      ? `\nCATEGORY HINTS (use for decision context only, do NOT return this text):\n${hintEntries.join('\n')}\n`
+      : '\n';
 
     return `You are a category classifier for text content organization.
 
@@ -136,7 +152,10 @@ STRICT RULES:
 
 TEXT TO CLASSIFY: "${text}"
 
-ALLOWED CATEGORIES (choose exactly one): ${categories.join(', ')}
+ALLOWED CATEGORIES (choose exactly one of the following labels):
+${allowedCategoriesList}
+
+${hintSection}
 
 Return your classification as a JSON object with this EXACT format:
 {
@@ -168,6 +187,25 @@ IMPORTANT: The "classification" field must contain ONLY one of these exact categ
   }
 
   /**
+   * Sanitize label strings by removing numbering and parenthetical context.
+   */
+  sanitizeCategoryLabel(label) {
+    if (!label) return '';
+
+    const labelString = typeof label === 'string' ? label : String(label);
+
+    return labelString
+      .replace(/\(([^)]+)\)/g, '')
+      .replace(/^[\s]*[-–—•]+\s*/, '')
+      .replace(/^[\s]*\d+\)\s*/, '')
+      .replace(/^[\s]*\d+\.\s*/, '')
+      .replace(/^[\s]*[IVXLC]+\.\s*/i, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/:\s*$/, '');
+  }
+
+  /**
    * Validate category classification against allowed categories
    */
   validateCategoryClassification(llmResponse, allowedCategories) {
@@ -187,6 +225,12 @@ IMPORTANT: The "classification" field must contain ONLY one of these exact categ
       return { valid: true, classification: originalCategory };
     }
 
+    const sanitizedResponse = this.sanitizeCategoryLabel(classification).toLowerCase();
+    if (normalizedCategories.includes(sanitizedResponse)) {
+      const originalCategory = allowedCategories[normalizedCategories.indexOf(sanitizedResponse)];
+      return { valid: true, classification: originalCategory };
+    }
+
     // Log validation error
     console.error('Invalid category classification:', {
       received: classification,
@@ -199,8 +243,18 @@ IMPORTANT: The "classification" field must contain ONLY one of these exact categ
   /**
    * Generate cache key
    */
-  generateCacheKey(text, categories) {
-    return `${text.toLowerCase().trim()}|${categories.map(c => c.toLowerCase()).sort().join(',')}`;
+  generateCacheKey(text, categories, categoryHints = {}) {
+    const categoriesKey = categories
+      .map(c => c.toLowerCase())
+      .sort()
+      .join(',');
+
+    const hintsKey = Object.keys(categoryHints || {})
+      .sort()
+      .map(key => `${key.toLowerCase()}:${(categoryHints[key] || '').toLowerCase()}`)
+      .join('|');
+
+    return `${text.toLowerCase().trim()}|${categoriesKey}|${hintsKey}`;
   }
 
   /**

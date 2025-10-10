@@ -59,7 +59,7 @@
   - [x] 2.12 Add caching support using text + categories as cache key
   - [x] 2.13 Export both classifiers as module.exports for server integration
 
-- [ ] 3.0 Add Backend API Endpoints and Routing
+- [x] 3.0 Add Backend API Endpoints and Routing
   - [x] 3.1 In `app/server-v5.js`, import SentimentClassifier and CategoryClassifier modules
   - [x] 3.2 Create `POST /api/classify-sentiment` endpoint accepting `{ text, entity, sentimentLabels[], description, apiKey }`
   - [x] 3.3 Add API key validation for sentiment endpoint (check format and presence)
