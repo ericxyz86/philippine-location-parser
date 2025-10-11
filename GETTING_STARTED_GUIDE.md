@@ -6,13 +6,16 @@ Welcome! This guide will teach you how to use the Philippine Location Parser & T
 
 ## What Does This App Do?
 
-This app helps you analyze Filipino text in three powerful ways:
+This app helps you analyze text in three powerful ways:
 
 1. **📍 Location Extraction** - Finds Philippine locations (regions, provinces, cities, barangays) in text
 2. **💬 Sentiment Classification** - Determines if text is positive, negative, neutral (or custom labels)
 3. **📁 Category Classification** - Organizes text into categories you define
 
-**The best part?** You can run all three analyses at the same time on different datasets!
+**The best part?**
+- ✅ **No installation required** - Just open your browser!
+- ✅ **Multilingual support** - Works with English, Filipino (Tagalog/Bisaya), and more
+- ✅ **Run all three analyses at once** on different datasets
 
 ---
 
@@ -21,7 +24,7 @@ This app helps you analyze Filipino text in three powerful ways:
 - Researchers analyzing social media data
 - Customer service teams categorizing feedback
 - Marketing professionals tracking brand sentiment
-- Anyone working with Filipino text data
+- Anyone working with text data (any language!)
 
 ---
 
@@ -44,9 +47,9 @@ This app helps you analyze Filipino text in three powerful ways:
 
 ### What You'll Need
 
-- A computer with **Node.js** installed (version 18 or higher)
-- An **OpenAI API key** (we'll show you how to get one)
 - A modern web browser (Chrome, Firefox, Edge, or Safari)
+- An **OpenAI API key** (we'll show you how to get one)
+- That's it! No installation required.
 
 ### Step 1: Get Your OpenAI API Key
 
@@ -61,33 +64,13 @@ This app uses AI to understand text, so you'll need an OpenAI API key:
 
 💡 **Cost Note:** This app uses GPT-4o-mini, which is very affordable. Processing 1,000 texts typically costs less than $0.50 USD.
 
-### Step 2: Install and Start the App
-
-Open your terminal or command prompt and run:
-
-```bash
-# Install dependencies
-npm install
-cd app
-npm install
-
-# Start the server
-npm start
-```
-
-You should see:
-```
-Philippine Location Parser v5 Server running on port 3002
-Web interface: http://localhost:3002
-```
-
-### Step 3: Open the App
+### Step 2: Open the App
 
 1. Open your web browser
-2. Go to: **http://localhost:3002**
+2. Go to: **https://location-parser.onrender.com**
 3. You should see the Philippine Location Parser & Text Classifier interface
 
-### Step 4: Add Your API Key
+### Step 3: Add Your API Key
 
 1. Look for the **red box** at the top that says "OpenAI API Key (REQUIRED)"
 2. Paste your API key (the one starting with `sk-`)
@@ -115,7 +98,7 @@ Let's extract locations from Filipino social media posts!
 
 **2. Enter some sample text**
 
-In the text box labeled **"Or Enter Text to Parse"**, paste this sample data:
+In the text box labeled **"Or Enter Text to Parse"**, paste this sample data (mix of English and Filipino):
 
 ```
 Taga Quezon City ako
@@ -123,6 +106,7 @@ Here in Makati area
 I'm from Cebu City
 Wala sa Manila
 Area Rizal
+Living in BGC
 ```
 
 **3. Click "Extract from Text"**
@@ -139,18 +123,25 @@ Area Rizal
 Once complete, you'll see:
 
 - **Statistics Panel** showing:
-  - Total Rows: 5
-  - With Locations: 5
+  - Total Rows: 6
+  - With Locations: 6
   - Success Rate: 100%
   - Top Cities chart
 
 - **Results List** showing each text with extracted location:
   ```
   Row 1
-  Taga Quezon City ako
+  Taga Quezon City ako (Filipino)
   📍 Region: National Capital Region (NCR)
   Province: Metro Manila
   City: Quezon City
+  Barangay: None
+
+  Row 2
+  Here in Makati area (English)
+  📍 Region: National Capital Region (NCR)
+  Province: Metro Manila
+  City: Makati City
   Barangay: None
   ```
 
@@ -163,17 +154,26 @@ Once complete, you'll see:
 
 ### Try These Examples
 
-Now try these different types of text to see how the parser handles various formats:
+Now try these different types of text to see how the parser handles various languages and formats:
 
 ```
 #AlterBacolod
-Here in Danao, Cebu
-Taga QC ako
-BGC area
-Brgy. Poblacion, Makati City
-From Davao
-Area Paranaque
+Here in Danao, Cebu (English)
+Taga QC ako (Filipino/Tagalog)
+BGC area (English abbreviation)
+Brgy. Poblacion, Makati City (Mixed)
+Naa ko sa Cebu (Bisaya/Cebuano)
+From Davao (English)
+Area Paranaque (Mixed)
 ```
+
+💡 **Multilingual Magic:** The app understands:
+- **English**: "I'm from Manila"
+- **Filipino/Tagalog**: "Taga Quezon City ako"
+- **Bisaya/Cebuano**: "Naa ko sa Davao"
+- **Mixed**: "Here in Makati area"
+- **Abbreviations**: "QC", "BGC", "CDO"
+- **Hashtags**: "#AlterCebu"
 
 ---
 
@@ -557,7 +557,8 @@ If you processed a Google Sheet or CSV:
 
 **For Location Extraction:**
 - ✅ Include context: "here in Cebu City" works better than just "Cebu"
-- ✅ Filipino and English both work: "taga Maynila" or "from Manila"
+- ✅ Any language works: "taga Maynila" (Tagalog), "from Manila" (English), "naa ko sa Davao" (Bisaya)
+- ✅ Mix languages freely: "Here sa Makati area"
 - ❌ Avoid: Very short mentions without context
 
 **For Sentiment Analysis:**
@@ -695,28 +696,25 @@ A: See the [Merging Results](#merging-results-with-original-data) section above.
 
 ### Technical Questions
 
-**Q: Which Node.js version do I need?**
-A: Version 18 or higher. Check with: `node --version`
+**Q: Do I need to install anything?**
+A: No! Just open your browser and go to https://location-parser.onrender.com
 
-**Q: The server won't start. What do I do?**
-A:
-1. Check if port 3002 is already in use
-2. Try: `lsof -ti:3002 | xargs kill -9` (Mac/Linux)
-3. Or change the port in `.env` file
-4. Make sure you ran `npm install` first
+**Q: Can I use this on my phone or tablet?**
+A: Yes! The web interface works on any device with a modern browser.
 
-**Q: Can I deploy this to a server?**
-A: Yes, but you'll need to configure environment variables. See the technical USER_MANUAL.md for details.
+**Q: Is there a desktop version?**
+A: The web version works great on desktop. You can bookmark it for quick access.
 
-**Q: How do I update to the latest version?**
-A:
-```bash
-git pull origin main
-npm install
-cd app
-npm install
-npm start
-```
+**Q: What languages are supported?**
+A: The app is multilingual and works with:
+- English
+- Filipino (Tagalog)
+- Bisaya/Cebuano
+- Other Philippine languages
+- Mixed language text
+
+**Q: Does it only work for Philippine locations?**
+A: The location extraction is optimized for Philippine locations (regions, provinces, cities, barangays). However, sentiment and category classification work with any text in any language.
 
 ---
 
@@ -731,10 +729,10 @@ npm start
 ### Troubleshooting Steps
 
 1. **Check the browser console** (Press F12, click Console tab)
-2. **Check the server terminal** for error messages
+2. **Refresh the page** (Ctrl+R or Cmd+R)
 3. **Try the examples in this guide** to isolate the issue
-4. **Clear your browser cache** and restart
-5. **Restart the server** (`Ctrl+C` then `npm start`)
+4. **Clear your browser cache** and reload
+5. **Try a different browser** (Chrome usually works best)
 
 ### Getting Support
 
@@ -742,23 +740,22 @@ If you're still stuck:
 
 1. Note the exact error message
 2. Capture what you were trying to do
-3. Check if others have reported similar issues
+3. Take a screenshot of the issue
 4. Contact your technical team with:
    - Error message
    - Steps to reproduce
-   - Your Node.js version (`node --version`)
    - Browser type and version
+   - Sample data (if applicable)
 
 ---
 
 ## Quick Reference Card
 
-### Starting the App
-```bash
-cd app
-npm start
-# Open http://localhost:3002
-```
+### Accessing the App
+Simply open your browser and go to:
+**https://location-parser.onrender.com**
+
+No installation, no setup required!
 
 ### Processing Text
 1. Enter API key and save
