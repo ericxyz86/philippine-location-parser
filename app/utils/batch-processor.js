@@ -10,104 +10,112 @@
  * @param {Object} options - Processing options
  * @returns {Promise<Array>} Results array
  */
+/**
+ * Process texts in parallel with sliding window concurrency
+ * Eliminates "straggler" problem by starting new tasks immediately when one finishes
+ * @param {Array<string>} texts - Array of texts to process
+ * @param {Function} processFn - Processing function for each text
+ * @param {Object} options - Processing options
+ * @returns {Promise<Array>} Results array
+ */
 async function processBatch(texts, processFn, options = {}) {
   const {
-    batchSize = 5,           // Process 5 items concurrently
+    batchSize = 5,           // Concurrency limit
     useLLM = true,
     onProgress = null,       // Progress callback
     abortSignal = null       // AbortController signal for cancellation
   } = options;
 
-  const results = [];
   const totalTexts = texts.length;
-  let processedCount = 0;
-
-  console.log(`📊 Starting batch processing: ${totalTexts} texts in batches of ${batchSize}`);
+  // Initialize results array with proper size
+  const results = new Array(totalTexts);
+  
+  console.log(`📊 Starting optimized batch processing: ${totalTexts} texts (concurrency: ${batchSize})`);
   const startTime = Date.now();
 
-  // Process in batches
-  for (let i = 0; i < totalTexts; i += batchSize) {
-    // Check for abort signal
-    if (abortSignal && abortSignal.aborted) {
-      console.log('❌ Batch processing aborted');
-      break;
+  let currentIndex = 0;
+  let activeWorkers = 0;
+  let processedCount = 0;
+  
+  return new Promise((resolve, reject) => {
+    // If no texts, resolve immediately
+    if (totalTexts === 0) {
+      resolve([]);
+      return;
     }
 
-    const batch = texts.slice(i, i + batchSize);
-    const batchNum = Math.floor(i / batchSize) + 1;
-    const totalBatches = Math.ceil(totalTexts / batchSize);
+    // Function to start next worker
+    const next = () => {
+      // Check if we need to stop
+      if (abortSignal && abortSignal.aborted) {
+        // Resolve with what we have so far
+        console.log('❌ Batch processing aborted');
+        resolve(results); 
+        return;
+      }
 
-    console.log(`\n📦 Processing batch ${batchNum}/${totalBatches} (${batch.length} items)...`);
+      // If all items processed, resolve
+      if (processedCount === totalTexts) {
+        const totalTime = Date.now() - startTime;
+        const avgTime = Math.round(totalTime / totalTexts);
+        
+        console.log('\n═'.repeat(50));
+        console.log(`✨ Batch processing complete!`);
+        console.log(`  Total: ${totalTexts} texts`);
+        console.log(`  Time: ${totalTime}ms (avg: ${avgTime}ms/item)`);
+        console.log('═'.repeat(50));
+        resolve(results);
+        return;
+      }
 
-    // Process batch items in parallel
-    const batchPromises = batch.map(async (text, index) => {
-      const itemIndex = i + index;
-      try {
-        const result = await processFn(text, useLLM);
-        processedCount++;
+      // Start new workers while we have capacity and items left
+      while (activeWorkers < batchSize && currentIndex < totalTexts) {
+        // Capture current index for this worker
+        const index = currentIndex++;
+        const text = texts[index];
+        activeWorkers++;
 
-        // Call progress callback if provided
-        if (onProgress) {
-          onProgress({
-            current: processedCount,
-            total: totalTexts,
-            percentage: Math.round((processedCount / totalTexts) * 100),
-            result
-          });
+        // Log progress occasionally
+        if (index % 10 === 0 && index > 0) {
+           // Optional verbose logging
         }
 
-        return { success: true, result, index: itemIndex };
-      } catch (error) {
-        console.error(`❌ Error processing item ${itemIndex + 1}: ${error.message}`);
-        return {
-          success: false,
-          error: error.message,
-          index: itemIndex,
-          result: {
-            text,
-            location: null,
-            error: error.message,
-            method: 'error'
-          }
-        };
+        // Execute task
+        processFn(text, useLLM)
+          .then(result => {
+             results[index] = result;
+             processedCount++;
+             
+             if (onProgress) {
+               onProgress({
+                 current: processedCount,
+                 total: totalTexts,
+                 percentage: Math.round((processedCount / totalTexts) * 100),
+                 result
+               });
+             }
+          })
+          .catch(error => {
+             console.error(`❌ Error processing item ${index + 1}: ${error.message}`);
+             results[index] = {
+                text,
+                location: null,
+                error: error.message,
+                method: 'error'
+             };
+             processedCount++;
+          })
+          .finally(() => {
+             activeWorkers--;
+             // Trigger next task since a slot opened up
+             next();
+          });
       }
-    });
+    };
 
-    // Wait for all items in batch to complete
-    const batchResults = await Promise.allSettled(batchPromises);
-
-    // Process results
-    batchResults.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        results[i + index] = result.value.result;
-      } else {
-        // Handle rejected promises
-        results[i + index] = {
-          text: batch[index],
-          location: null,
-          error: result.reason,
-          method: 'error'
-        };
-      }
-    });
-
-    // Log batch completion
-    const batchTime = Date.now() - startTime;
-    const avgTimePerItem = Math.round(batchTime / processedCount);
-    console.log(`✅ Batch ${batchNum} complete (avg: ${avgTimePerItem}ms/item)`);
-  }
-
-  const totalTime = Date.now() - startTime;
-  const avgTime = Math.round(totalTime / totalTexts);
-
-  console.log('\n═'.repeat(50));
-  console.log(`✨ Batch processing complete!`);
-  console.log(`  Total: ${totalTexts} texts`);
-  console.log(`  Time: ${totalTime}ms (avg: ${avgTime}ms/item)`);
-  console.log(`  Speedup: ${batchSize}x parallel processing`);
-  console.log('═'.repeat(50));
-
-  return results;
+    // Kick off initial set of workers
+    next();
+  });
 }
 
 /**
