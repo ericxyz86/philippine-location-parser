@@ -424,11 +424,11 @@ app.post('/api/batch-parse', async (req, res) => {
       };
 
       if (mode === 'sentiment') {
-        console.log(`🚀 Using batched parallel classification (50 texts/call, 10 workers)`);
+        console.log(`🚀 Using batched parallel classification (30 texts/call, 5 workers)`);
         results = await classifier.classifyAll(texts, entity, sentimentLabels, description, progressCallback);
       } else {
         const activeCategoryConfig = sanitizedCategoryConfig || sanitizeCategoryConfig(categories, categoryHints);
-        console.log(`🚀 Using batched parallel classification (50 texts/call, 10 workers)`);
+        console.log(`🚀 Using batched parallel classification (30 texts/call, 5 workers)`);
         console.log('  Categories:', activeCategoryConfig.categories.join(', '));
         results = await classifier.classifyAll(texts, activeCategoryConfig.categories, description, activeCategoryConfig.hints, progressCallback);
       }
@@ -1000,11 +1000,11 @@ app.post('/api/process-google-sheet', async (req, res) => {
     };
 
     if (mode === 'sentiment') {
-      console.log(`🚀 Using batched parallel classification (50 texts/call, 10 workers)`);
+      console.log(`🚀 Using batched parallel classification (30 texts/call, 5 workers)`);
       results = await classifier.classifyAll(texts, entity, sentimentLabels, description, progressCallback);
     } else if (mode === 'category') {
       const activeCategoryConfig = sanitizedCategoryConfig || sanitizeCategoryConfig(categories, categoryHints);
-      console.log(`🚀 Using batched parallel classification (50 texts/call, 10 workers)`);
+      console.log(`🚀 Using batched parallel classification (30 texts/call, 5 workers)`);
       console.log('  Categories:', activeCategoryConfig.categories.join(', '));
       results = await classifier.classifyAll(texts, activeCategoryConfig.categories, description, activeCategoryConfig.hints, progressCallback);
     } else {

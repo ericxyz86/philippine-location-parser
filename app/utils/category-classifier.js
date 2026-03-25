@@ -6,8 +6,8 @@
 
 const OpenAI = require('openai');
 
-const CONCURRENCY = 10; // Parallel API workers
-const BATCH_SIZE = 50;  // Texts per API call
+const CONCURRENCY = 5;  // Parallel API workers (balanced to avoid 429 rate limits)
+const BATCH_SIZE = 30;  // Texts per API call (smaller batches = less token burst)
 
 class CategoryClassifier {
   constructor(apiKey) {
@@ -148,7 +148,10 @@ Return ONLY a JSON array like: ["${categories[0]}", "${categories[1] || categori
         lastError = error.message;
         attempt++;
         if (attempt <= this.maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          const isRateLimit = error.status === 429 || error.message?.includes('429');
+          const backoffMs = isRateLimit ? 5000 * attempt : 1000 * attempt;
+          console.log(`  ⏳ Waiting ${backoffMs}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
         }
       }
     }
