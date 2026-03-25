@@ -1,10 +1,13 @@
 /**
  * Sentiment Classifier for Philippine Location Parser
  * Uses GPT-4.1-mini for sentiment classification with strict label validation
- * Supports custom entities and sentiment labels
+ * Supports batch classification (multiple texts per API call) for speed
  */
 
 const OpenAI = require('openai');
+
+const CONCURRENCY = 10; // Parallel API workers (like chewy-byd)
+const BATCH_SIZE = 50;  // Texts per API call
 
 class SentimentClassifier {
   constructor(apiKey) {
@@ -21,214 +24,211 @@ class SentimentClassifier {
   }
 
   /**
-   * Classify sentiment of text toward specified entity
-   * @param {string} text - Text to classify
-   * @param {string} entity - Entity to evaluate sentiment toward (e.g., "PLDT Home")
-   * @param {string[]} sentimentLabels - Allowed sentiment labels (e.g., ["Positive", "Neutral", "Negative"])
-   * @param {string} description - Classification description for context
-   * @returns {Object} Classification result
+   * Classify sentiment of a single text (backwards-compatible API)
    */
   async classifySentiment(text, entity, sentimentLabels, description = '') {
     if (!this.enabled) {
-      return {
-        text,
-        classification: null,
-        confidence: 0,
-        method: 'disabled',
-        reasoning: 'Sentiment classification disabled'
-      };
+      return { text, classification: null, confidence: 0, method: 'disabled', reasoning: 'Sentiment classification disabled' };
     }
-
-    // Validate inputs
     if (!entity || !sentimentLabels || sentimentLabels.length === 0) {
-      return {
-        text,
-        classification: null,
-        confidence: 0,
-        method: 'validation_error',
-        reasoning: 'Missing required fields: entity and sentimentLabels'
-      };
+      return { text, classification: null, confidence: 0, method: 'validation_error', reasoning: 'Missing required fields: entity and sentimentLabels' };
     }
 
-    // Check cache first
+    // Check cache
     const cacheKey = this.generateCacheKey(text, entity, sentimentLabels);
     if (this.cache.has(cacheKey)) {
-      const cached = this.cache.get(cacheKey);
-      return { ...cached, cached: true };
+      return { ...this.cache.get(cacheKey), cached: true };
     }
 
-    // Attempt classification with retry logic
+    // Use batch method with single item
+    const results = await this.classifyBatch([text], entity, sentimentLabels, description);
+    return results[0];
+  }
+
+  /**
+   * Classify a batch of texts in one API call (up to BATCH_SIZE)
+   * Returns array of classification results in same order as input
+   */
+  async classifyBatch(texts, entity, sentimentLabels, description = '') {
+    if (!this.enabled) {
+      return texts.map(text => ({ text, classification: null, confidence: 0, method: 'disabled', reasoning: 'Disabled' }));
+    }
+
+    // Check cache for each text, identify uncached
+    const results = new Array(texts.length);
+    const uncachedIndices = [];
+    const uncachedTexts = [];
+
+    for (let i = 0; i < texts.length; i++) {
+      const cacheKey = this.generateCacheKey(texts[i], entity, sentimentLabels);
+      if (this.cache.has(cacheKey)) {
+        results[i] = { ...this.cache.get(cacheKey), cached: true };
+      } else {
+        uncachedIndices.push(i);
+        uncachedTexts.push(texts[i]);
+      }
+    }
+
+    if (uncachedTexts.length === 0) return results;
+
+    // Build batch prompt
+    const sanitize = (s) => s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    const numberedTexts = uncachedTexts.map((t, i) => `${i + 1}. ${sanitize(t) || '(empty)'}`).join('\n');
+
+    const prompt = `You are a sentiment classifier for social media text analysis.
+
+TASK: Classify the sentiment of each text below toward the entity "${entity}".
+${description ? `\nCONTEXT: ${description}\n` : ''}
+ALLOWED LABELS (choose exactly one per text): ${sentimentLabels.join(', ')}
+
+RULES:
+1. Return ONLY a JSON array of strings — one label per text, in order.
+2. Each label must be EXACTLY one of: ${sentimentLabels.join(', ')}
+3. If text doesn't mention the entity, classify overall sentiment.
+4. The array must have exactly ${uncachedTexts.length} elements.
+
+TEXTS TO CLASSIFY:
+${numberedTexts}
+
+Return ONLY a JSON array like: ["${sentimentLabels[0]}", "${sentimentLabels[1] || sentimentLabels[0]}", ...]`;
+
     let attempt = 0;
     let lastError = null;
 
     while (attempt <= this.maxRetries) {
       try {
-        const prompt = this.buildSentimentPrompt(text, entity, sentimentLabels, description, attempt);
-        const response = await this.callGPT4oMini(prompt);
+        const completion = await this.openai.chat.completions.create({
+          model: 'gpt-4.1-mini',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.1,
+          max_tokens: uncachedTexts.length * 20 + 100
+        });
 
-        // Validate the classification
-        const validation = this.validateSentimentClassification(response, sentimentLabels);
+        const raw = completion.choices[0]?.message?.content?.trim() ?? '';
+        const jsonMatch = raw.match(/\[[\s\S]*\]/);
 
-        if (validation.valid) {
-          const result = {
-            text,
-            classification: validation.classification,
-            confidence: response.confidence || 90,
-            method: attempt > 0 ? `llm_retry_${attempt}` : 'llm_classified',
-            reasoning: response.reasoning || 'Sentiment classified successfully'
-          };
+        if (jsonMatch) {
+          let parsed = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(parsed)) {
+            // Normalize: pad or trim to exact length
+            const normalizedLabels = sentimentLabels.map(l => l.toLowerCase().trim());
+            while (parsed.length < uncachedTexts.length) parsed.push(sentimentLabels[0]);
+            parsed = parsed.slice(0, uncachedTexts.length);
 
-          // Cache the result
-          this.cache.set(cacheKey, result);
-          this.maintainCacheSize();
+            // Map results back
+            for (let j = 0; j < uncachedTexts.length; j++) {
+              const label = String(parsed[j]).trim();
+              const matchIdx = normalizedLabels.indexOf(label.toLowerCase().trim());
+              const validLabel = matchIdx >= 0 ? sentimentLabels[matchIdx] : sentimentLabels[0];
 
-          return result;
+              const result = {
+                text: uncachedTexts[j],
+                classification: validLabel,
+                confidence: matchIdx >= 0 ? 90 : 50,
+                method: attempt > 0 ? `llm_batch_retry_${attempt}` : 'llm_batch',
+                reasoning: 'Batch classified'
+              };
+
+              // Cache it
+              const cacheKey = this.generateCacheKey(uncachedTexts[j], entity, sentimentLabels);
+              this.cache.set(cacheKey, result);
+
+              results[uncachedIndices[j]] = result;
+            }
+
+            this.maintainCacheSize();
+            return results;
+          }
         }
 
-        // Invalid classification - retry
-        lastError = `Invalid classification: received "${response.classification}", expected one of: ${sentimentLabels.join(', ')}`;
-        console.warn(`[Attempt ${attempt + 1}/${this.maxRetries + 1}] ${lastError}`);
+        lastError = 'Failed to parse batch response as JSON array';
         attempt++;
-
       } catch (error) {
-        console.error(`[Attempt ${attempt + 1}/${this.maxRetries + 1}] LLM API error:`, error.message);
+        console.error(`[Batch attempt ${attempt + 1}/${this.maxRetries + 1}] LLM API error:`, error.message);
         lastError = error.message;
         attempt++;
-
         if (attempt <= this.maxRetries) {
-          // Wait before retry
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         }
       }
     }
 
-    // All retries exhausted
-    const result = {
-      text,
-      classification: 'Error: Invalid Classification',
-      confidence: 0,
-      method: 'retry_exhausted',
-      reasoning: `Failed after ${this.maxRetries + 1} attempts: ${lastError}`
+    // All retries exhausted — fill uncached with error
+    for (let j = 0; j < uncachedTexts.length; j++) {
+      results[uncachedIndices[j]] = {
+        text: uncachedTexts[j],
+        classification: 'Error: Classification Failed',
+        confidence: 0,
+        method: 'retry_exhausted',
+        reasoning: `Batch failed: ${lastError}`
+      };
+    }
+    return results;
+  }
+
+  /**
+   * Classify all texts with parallel batched workers (main entry point for large datasets)
+   * @param {string[]} allTexts - All texts to classify
+   * @param {string} entity - Entity to evaluate sentiment toward
+   * @param {string[]} sentimentLabels - Allowed labels
+   * @param {string} description - Optional context
+   * @param {Function} onProgress - Progress callback(done, total)
+   * @returns {Array} Classification results in order
+   */
+  async classifyAll(allTexts, entity, sentimentLabels, description = '', onProgress = null) {
+    if (!this.enabled) {
+      return allTexts.map(text => ({ text, classification: null, confidence: 0, method: 'disabled' }));
+    }
+
+    // Split into batches
+    const batches = [];
+    for (let i = 0; i < allTexts.length; i += BATCH_SIZE) {
+      batches.push({ start: i, texts: allTexts.slice(i, i + BATCH_SIZE) });
+    }
+
+    const allResults = new Array(allTexts.length);
+    let completedCount = 0;
+
+    // Worker function
+    let batchIdx = 0;
+    const processBatchWorker = async () => {
+      while (batchIdx < batches.length) {
+        const myIdx = batchIdx++;
+        const batch = batches[myIdx];
+        const batchResults = await this.classifyBatch(batch.texts, entity, sentimentLabels, description);
+
+        for (let j = 0; j < batchResults.length; j++) {
+          allResults[batch.start + j] = batchResults[j];
+        }
+
+        completedCount += batch.texts.length;
+        if (onProgress) {
+          onProgress(Math.min(completedCount, allTexts.length), allTexts.length);
+        }
+      }
     };
 
-    this.cache.set(cacheKey, result);
-    return result;
+    // Spawn concurrent workers
+    const workerCount = Math.min(CONCURRENCY, batches.length);
+    const workers = Array.from({ length: workerCount }, () => processBatchWorker());
+    await Promise.all(workers);
+
+    return allResults;
   }
 
-  /**
-   * Build sentiment classification prompt
-   */
-  buildSentimentPrompt(text, entity, sentimentLabels, description, retryAttempt = 0) {
-    const strictnessNote = retryAttempt > 0
-      ? '\n\n⚠️ CRITICAL: Your previous response was invalid. You MUST return EXACTLY one of the allowed labels.'
-      : '';
-
-    return `You are a sentiment classifier for social media text analysis.
-
-TASK: Classify the sentiment of the text toward the entity "${entity}".
-
-${description ? `CONTEXT: ${description}\n` : ''}
-STRICT RULES:
-1. Return ONLY ONE of these labels: ${sentimentLabels.join(', ')}
-2. Do not add any other text, explanation, or labels
-3. Do not create variations or similar labels
-4. If text doesn't mention the entity, classify the overall sentiment
-5. Your response must be EXACTLY one of the provided labels (case-insensitive matching)${strictnessNote}
-
-TEXT TO CLASSIFY: "${text}"
-
-ALLOWED LABELS (choose exactly one): ${sentimentLabels.join(', ')}
-
-Return your classification as a JSON object with this EXACT format:
-{
-  "classification": "one of the allowed labels",
-  "confidence": 0-100,
-  "reasoning": "brief explanation"
-}
-
-IMPORTANT: The "classification" field must contain ONLY one of these exact labels: ${sentimentLabels.join(', ')}`;
-  }
-
-  /**
-   * Call GPT-4.1-mini API
-   */
-  async callGPT4oMini(prompt) {
-    const response = await this.openai.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [{
-        role: "user",
-        content: prompt
-      }],
-      temperature: 0.1,  // Low temperature for consistency
-      max_tokens: 150,
-      response_format: { type: "json_object" }
-    });
-
-    const result = JSON.parse(response.choices[0].message.content);
-    return result;
-  }
-
-  /**
-   * Validate sentiment classification against allowed labels
-   */
-  validateSentimentClassification(llmResponse, allowedLabels) {
-    if (!llmResponse || !llmResponse.classification) {
-      return { valid: false, classification: null };
-    }
-
-    const classification = llmResponse.classification.trim();
-
-    // Exact match (case-insensitive)
-    const normalizedLabels = allowedLabels.map(l => l.toLowerCase().trim());
-    const normalizedResponse = classification.toLowerCase().trim();
-
-    if (normalizedLabels.includes(normalizedResponse)) {
-      // Return the original label format from allowedLabels
-      const originalLabel = allowedLabels[normalizedLabels.indexOf(normalizedResponse)];
-      return { valid: true, classification: originalLabel };
-    }
-
-    // Log validation error
-    console.error('Invalid sentiment classification:', {
-      received: classification,
-      allowed: allowedLabels
-    });
-
-    return { valid: false, classification: null };
-  }
-
-  /**
-   * Generate cache key
-   */
   generateCacheKey(text, entity, sentimentLabels) {
     return `${text.toLowerCase().trim()}|${entity.toLowerCase().trim()}|${sentimentLabels.map(l => l.toLowerCase()).sort().join(',')}`;
   }
 
-  /**
-   * Clear cache
-   */
-  clearCache() {
-    this.cache.clear();
-  }
+  clearCache() { this.cache.clear(); }
 
-  /**
-   * Get cache statistics
-   */
   getCacheStats() {
-    return {
-      size: this.cache.size,
-      enabled: this.enabled,
-      maxSize: 5000
-    };
+    return { size: this.cache.size, enabled: this.enabled, maxSize: 5000 };
   }
 
-  /**
-   * Maintain cache size
-   */
   maintainCacheSize() {
     const maxSize = 5000;
     if (this.cache.size > maxSize) {
-      // Remove oldest entries (FIFO)
       const entriesToRemove = this.cache.size - maxSize;
       const keys = Array.from(this.cache.keys());
       for (let i = 0; i < entriesToRemove; i++) {

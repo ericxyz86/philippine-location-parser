@@ -400,22 +400,41 @@ app.post('/api/batch-parse', async (req, res) => {
     let results;
     let startTime = Date.now();
 
-    // Define processing function based on mode
-    let processFunction;
-    if (mode === 'location') {
-      processFunction = (text) => processLLMFirst(text, useLLM, classifier);
-    } else if (mode === 'sentiment') {
-      processFunction = (text) => classifier.classifySentiment(text, entity, sentimentLabels, description);
-    } else if (mode === 'category') {
-      const activeCategoryConfig = sanitizedCategoryConfig || sanitizeCategoryConfig(categories, categoryHints);
-      console.log('  Categories:', activeCategoryConfig.categories.join(', '));
-      processFunction = (text) => classifier.classifyCategory(
-        text,
-        activeCategoryConfig.categories,
-        description,
-        activeCategoryConfig.hints
-      );
-    }
+    // For sentiment and category modes, use the new batch classifyAll method
+    // which sends multiple texts per API call (like chewy-byd pattern)
+    if (mode === 'sentiment' || mode === 'category') {
+      const progressCallback = (done, total) => {
+        if (sessionId) {
+          const elapsed = Date.now() - startTime;
+          const avgTimePerItem = done > 0 ? elapsed / done : 1000;
+          const remaining = total - done;
+          const estimatedRemaining = Math.round((remaining * avgTimePerItem) / 1000);
+
+          sendProgressUpdate(sessionId, {
+            type: 'progress',
+            current: done,
+            total,
+            percentage: Math.round((done / total) * 100),
+            estimatedRemaining
+          });
+        }
+        if (done % 50 === 0 || done === total) {
+          console.log(`  Progress: ${Math.round((done / total) * 100)}% (${done}/${total})`);
+        }
+      };
+
+      if (mode === 'sentiment') {
+        console.log(`🚀 Using batched parallel classification (50 texts/call, 10 workers)`);
+        results = await classifier.classifyAll(texts, entity, sentimentLabels, description, progressCallback);
+      } else {
+        const activeCategoryConfig = sanitizedCategoryConfig || sanitizeCategoryConfig(categories, categoryHints);
+        console.log(`🚀 Using batched parallel classification (50 texts/call, 10 workers)`);
+        console.log('  Categories:', activeCategoryConfig.categories.join(', '));
+        results = await classifier.classifyAll(texts, activeCategoryConfig.categories, description, activeCategoryConfig.hints, progressCallback);
+      }
+    } else {
+      // Location mode: use existing per-item parallel processing
+      let processFunction = (text) => processLLMFirst(text, useLLM, classifier);
 
     if (parallel && texts.length > 1) {
       // Use parallel batch processing
@@ -479,6 +498,7 @@ app.post('/api/batch-parse', async (req, res) => {
         results.push(result);
       }
     }
+    } // end location mode else block
 
     // Count successes (mode-specific)
     let successCount = 0;
@@ -957,49 +977,64 @@ app.post('/api/process-google-sheet', async (req, res) => {
       batchSize = 10;
     }
 
-    // Define processing function based on mode
-    let processFunction;
-    if (mode === 'location') {
-      processFunction = (text) => processLLMFirst(text, useLLM, classifier);
-    } else if (mode === 'sentiment') {
-      processFunction = (text) => classifier.classifySentiment(text, entity, sentimentLabels, description);
+    // Process based on mode
+    let results;
+
+    const progressCallback = (done, total) => {
+      const elapsed = Date.now() - startTime;
+      const avgTimePerItem = done > 0 ? elapsed / done : 1000;
+      const remaining = total - done;
+      const estimatedRemaining = Math.round((remaining * avgTimePerItem) / 1000);
+
+      sendProgressUpdate(sessionId, {
+        type: 'progress',
+        current: done,
+        total,
+        percentage: Math.round((done / total) * 100),
+        estimatedRemaining
+      });
+
+      if (done % 50 === 0 || done === total) {
+        console.log(`  Progress: ${Math.round((done / total) * 100)}% (${done}/${total})`);
+      }
+    };
+
+    if (mode === 'sentiment') {
+      console.log(`🚀 Using batched parallel classification (50 texts/call, 10 workers)`);
+      results = await classifier.classifyAll(texts, entity, sentimentLabels, description, progressCallback);
     } else if (mode === 'category') {
       const activeCategoryConfig = sanitizedCategoryConfig || sanitizeCategoryConfig(categories, categoryHints);
+      console.log(`🚀 Using batched parallel classification (50 texts/call, 10 workers)`);
       console.log('  Categories:', activeCategoryConfig.categories.join(', '));
-      processFunction = (text) => classifier.classifyCategory(
-        text,
-        activeCategoryConfig.categories,
-        description,
-        activeCategoryConfig.hints
-      );
-    }
+      results = await classifier.classifyAll(texts, activeCategoryConfig.categories, description, activeCategoryConfig.hints, progressCallback);
+    } else {
+      // Location mode: per-item parallel processing
+      let processFunction = (text) => processLLMFirst(text, useLLM, classifier);
+      results = await processBatch(texts, processFunction, {
+        batchSize,
+        useLLM,
+        onProgress: (progress) => {
+          const elapsed = Date.now() - startTime;
+          const avgTimePerItem = elapsed / progress.current;
+          const remainingItems = progress.total - progress.current;
+          const estimatedRemaining = Math.round((remainingItems * avgTimePerItem) / 1000);
 
-    // Use parallel processing for better performance
-    const results = await processBatch(texts, processFunction, {
-      batchSize,
-      useLLM,
-      onProgress: (progress) => {
-        // Send real-time progress updates via SSE
-        const elapsed = Date.now() - startTime;
-        const avgTimePerItem = elapsed / progress.current;
-        const remainingItems = progress.total - progress.current;
-        const estimatedRemaining = Math.round((remainingItems * avgTimePerItem) / 1000);
+          sendProgressUpdate(sessionId, {
+            type: 'progress',
+            current: progress.current,
+            total: progress.total,
+            percentage: progress.percentage,
+            estimatedRemaining,
+            currentText: progress.result?.text?.substring(0, 50) + '...',
+            hasLocation: progress.result?.location && hasLocationData(progress.result.location)
+          });
 
-        sendProgressUpdate(sessionId, {
-          type: 'progress',
-          current: progress.current,
-          total: progress.total,
-          percentage: progress.percentage,
-          estimatedRemaining,
-          currentText: progress.result?.text?.substring(0, 50) + '...',
-          hasLocation: progress.result?.location && hasLocationData(progress.result.location)
-        });
-
-        if (progress.current % 10 === 0 || progress.current === texts.length) {
-          console.log(`  Progress: ${progress.percentage}% (${progress.current}/${progress.total})`);
+          if (progress.current % 10 === 0 || progress.current === texts.length) {
+            console.log(`  Progress: ${progress.percentage}% (${progress.current}/${progress.total})`);
+          }
         }
-      }
-    });
+      });
+    }
 
     // Stop keep-alive
     clearInterval(keepAliveInterval);
