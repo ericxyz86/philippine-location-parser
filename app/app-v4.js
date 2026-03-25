@@ -2398,7 +2398,7 @@ function clearModeResults(mode) {
 
 /**
  * Process text with specific mode
- * Uses chunked requests to avoid Render free-tier proxy timeout (~30s)
+ * Uses chunked requests to avoid reverse-proxy timeout (~30s)
  */
 async function processTextWithMode(mode, lines) {
     const existingState = getModeState(mode);

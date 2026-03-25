@@ -67,7 +67,7 @@ This app uses AI to understand text, so you'll need an OpenAI API key:
 ### Step 2: Open the App
 
 1. Open your web browser
-2. Go to: **https://location-parser.onrender.com**
+2. Go to: **https://location-parser.aiailabs.net**
 3. You should see the Philippine Location Parser & Text Classifier interface
 
 ### Step 3: Add Your API Key
@@ -697,7 +697,7 @@ A: See the [Merging Results](#merging-results-with-original-data) section above.
 ### Technical Questions
 
 **Q: Do I need to install anything?**
-A: No! Just open your browser and go to https://location-parser.onrender.com
+A: No! Just open your browser and go to https://location-parser.aiailabs.net
 
 **Q: Can I use this on my phone or tablet?**
 A: Yes! The web interface works on any device with a modern browser.
@@ -753,7 +753,7 @@ If you're still stuck:
 
 ### Accessing the App
 Simply open your browser and go to:
-**https://location-parser.onrender.com**
+**https://location-parser.aiailabs.net**
 
 No installation, no setup required!
 
