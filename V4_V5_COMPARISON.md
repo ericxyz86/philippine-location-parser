@@ -13,7 +13,7 @@ The Philippine Location Parser implements a sophisticated dual-mode architecture
 
 | Aspect | V4 (Rule-based) | V5 (LLM-first) |
 |--------|-----------------|----------------|
-| **Primary Approach** | Pattern matching & fuzzy scoring | GPT-4o-mini direct extraction |
+| **Primary Approach** | Pattern matching & fuzzy scoring | GPT-4.1-mini direct extraction |
 | **Dependencies** | Local database only | OpenAI API + local database |
 | **Operation Mode** | Completely offline | Requires internet connection |
 | **Server File** | `server-v4.js` | `server-v5.js` |

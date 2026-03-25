@@ -27,7 +27,7 @@
 
 - The API key is stored in the `.env` file (not tracked by git)
 - It's loaded using the `dotenv` package when the server starts
-- The key is used by `llm-validator.js` to call GPT-4o-mini for location validation
+- The key is used by `llm-validator.js` to call GPT-4.1-mini for location validation
 - If no API key is provided, the system falls back to rule-based parsing only
 
 ## Security Notes
@@ -39,7 +39,7 @@
 
 ## Cost Information
 
-- GPT-4o-mini costs approximately $0.00015 per 1K input tokens
+- GPT-4.1-mini costs approximately $0.00015 per 1K input tokens
 - Each validation request uses ~200 tokens
 - Processing 1000 comments costs approximately $0.03 USD
 - The system includes caching to minimize API calls

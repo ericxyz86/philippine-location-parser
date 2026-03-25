@@ -62,7 +62,7 @@ This app uses AI to understand text, so you'll need an OpenAI API key:
 5. **Copy the key** - it starts with `sk-` and looks like: `sk-abc123xyz...`
 6. **Save it somewhere safe** - you won't be able to see it again!
 
-💡 **Cost Note:** This app uses GPT-4o-mini, which is very affordable. Processing 1,000 texts typically costs less than $0.50 USD.
+💡 **Cost Note:** This app uses GPT-4.1-mini, which is very affordable. Processing 1,000 texts typically costs less than $0.50 USD.
 
 ### Step 2: Open the App
 
@@ -574,7 +574,7 @@ If you processed a Google Sheet or CSV:
 
 ### Managing Costs
 
-**OpenAI API costs are very low with GPT-4o-mini:**
+**OpenAI API costs are very low with GPT-4.1-mini:**
 - ~1,000 texts = $0.30-$0.50 USD
 - ~10,000 texts = $3-$5 USD
 
@@ -642,7 +642,7 @@ A: Yes, but costs add up. Each person can use their own key to track usage separ
 A: [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 
 **Q: How much does it cost?**
-A: GPT-4o-mini is very affordable - roughly $0.30-$0.50 per 1,000 texts.
+A: GPT-4.1-mini is very affordable - roughly $0.30-$0.50 per 1,000 texts.
 
 **Q: My API key doesn't work**
 A: Make sure:

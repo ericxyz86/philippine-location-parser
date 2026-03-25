@@ -18,7 +18,7 @@ This document provides a comprehensive summary of the Philippine Location Parser
 
 The Philippine Location Parser demonstrates **exceptional architectural design** with:
 
-- **AI-Powered Architecture**: LLM-first (V5) approach with GPT-4o-mini
+- **AI-Powered Architecture**: LLM-first (V5) approach with GPT-4.1-mini
 - **Modular Design**: Clean separation of concerns across parsers, utilities, and servers
 - **Performance Optimization**: Intelligent caching and parallel processing
 - **Modern Web Interface**: Responsive design with real-time progress tracking
@@ -45,7 +45,7 @@ The Philippine Location Parser demonstrates **exceptional architectural design**
 ### Innovation Highlights
 
 #### LLM-First Architecture (V5)
-- **Direct GPT-4o-mini extraction** (not just validation)
+- **Direct GPT-4.1-mini extraction** (not just validation)
 - **Cascading inference** for incomplete location mentions
 - **User-provided API keys** for cost management
 - **Context-aware processing** with false positive prevention
@@ -79,7 +79,7 @@ User Interface → API Gateway → Processing Layer → Utility Layer → Data L
 | All processing | OpenAI API key required | AI-powered extraction with superior accuracy |
 | High-throughput processing | Caching enabled | Efficient processing for repeated queries |
 | Accuracy-critical applications | API key + cascading inference | Superior context understanding |
-| Complex multilingual text | API key + GPT-4o-mini | Advanced semantic analysis |
+| Complex multilingual text | API key + GPT-4.1-mini | Advanced semantic analysis |
 | Cost management | User-provided API keys | Cost transparency and control |
 
 ## Performance Benchmarks
@@ -180,7 +180,7 @@ User Interface → API Gateway → Processing Layer → Utility Layer → Data L
 
 ## Conclusion
 
-The Philippine Location Parser represents a **sophisticated, production-ready solution** for location extraction from Philippine text. Its AI-powered architecture provides exceptional accuracy, allowing organizations to leverage cutting-edge GPT-4o-mini technology for superior location extraction.
+The Philippine Location Parser represents a **sophisticated, production-ready solution** for location extraction from Philippine text. Its AI-powered architecture provides exceptional accuracy, allowing organizations to leverage cutting-edge GPT-4.1-mini technology for superior location extraction.
 
 ### Key Strengths
 1. **Technical Excellence**: Well-architected, modular, and performant

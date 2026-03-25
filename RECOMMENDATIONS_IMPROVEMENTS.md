@@ -226,7 +226,7 @@ class MetricsExporter {
 
 #### Current State
 - Rule-based patterns in V4 mode
-- Generic GPT-4o-mini in V5 mode
+- Generic GPT-4.1-mini in V5 mode
 - No specialized training on Philippine location data
 
 #### Recommended Improvements

@@ -4,7 +4,7 @@
 
 The Philippine Location Parser is a sophisticated AI-powered system designed to extract location information from Philippine addresses and text, with special focus on social media comments about internet/telecom services. The system operates exclusively with:
 
-- **V5 (LLM-first)**: AI-powered extraction using GPT-4o-mini with cascading inference
+- **V5 (LLM-first)**: AI-powered extraction using GPT-4.1-mini with cascading inference
 - **Bring Your Own API Key**: Users must provide their own OpenAI API key
 - **No Offline Mode**: V4 (rule-based) has been disabled
 
@@ -39,7 +39,7 @@ The system implements a sophisticated dual-mode architecture:
    - ~10-50ms processing time per text
 
 2. **V5 Mode (LLM-first)**
-   - Primary extraction via GPT-4o-mini
+   - Primary extraction via GPT-4.1-mini
    - Cascading location inference for incomplete mentions
    - Higher accuracy on ambiguous/mixed-language text
    - ~500-2000ms processing time (API dependent)
@@ -76,7 +76,7 @@ class LLMExtractor {
   }
   
   async extractLocation(text) {
-    // Direct GPT-4o-mini extraction with cascading inference
+    // Direct GPT-4.1-mini extraction with cascading inference
   }
 }
 ```
@@ -214,7 +214,7 @@ function normalizeLocation(location) {
 
 ## Key Strengths
 
-1. **AI-Powered Accuracy**: Superior location extraction with GPT-4o-mini
+1. **AI-Powered Accuracy**: Superior location extraction with GPT-4.1-mini
 2. **Philippine Context**: Deep understanding of local geography and language
 3. **Multi-Language Support**: Handles English, Tagalog, and Bisaya patterns
 4. **Robust Normalization**: Consistent output formatting
@@ -248,7 +248,7 @@ function normalizeLocation(location) {
 ```bash
 cd app
 npm install
-npm start           # LLM-first mode with GPT-4o-mini
+npm start           # LLM-first mode with GPT-4.1-mini
 ```
 
 ### Production Considerations
@@ -319,7 +319,7 @@ POST /api/process-google-sheet
 
 ## Conclusion
 
-The Philippine Location Parser represents a sophisticated AI-powered solution to the complex challenge of extracting location information from unstructured text in a multilingual context. Its exclusive use of GPT-4o-mini with cascading inference provides superior accuracy, while its deep understanding of Philippine geography and language patterns makes it uniquely suited for local applications.
+The Philippine Location Parser represents a sophisticated AI-powered solution to the complex challenge of extracting location information from unstructured text in a multilingual context. Its exclusive use of GPT-4.1-mini with cascading inference provides superior accuracy, while its deep understanding of Philippine geography and language patterns makes it uniquely suited for local applications.
 
 The system's bring-your-own-API-key model provides cost transparency and control for users, while the advanced caching system ensures efficient processing for repeated queries. The comprehensive testing suite, modern web interface, and robust API design make it suitable for both development and production environments.
 

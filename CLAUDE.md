@@ -52,7 +52,7 @@ location-parser/
 
 ### Dual-Mode System
 - **V4**: Rule-based parser using `hierarchical-parser-v2.js` with offline database lookup
-- **V5** (Default): LLM-first extraction using `utils/llm-extractor.js` with GPT-4o-mini
+- **V5** (Default): LLM-first extraction using `utils/llm-extractor.js` with GPT-4.1-mini
 
 ### Key Components
 
@@ -66,7 +66,7 @@ location-parser/
 
 **V5 Processing Pipeline** (default):
 1. `server-v5.js` receives request
-2. `utils/llm-extractor.js` sends text directly to GPT-4o-mini for location extraction
+2. `utils/llm-extractor.js` sends text directly to GPT-4.1-mini for location extraction
 3. LLM returns structured location data (region, province, city, barangay)
 4. `parsers/location-normalizer.js` formats output
 5. Returns location with confidence scores and caching
@@ -79,7 +79,7 @@ location-parser/
 - Google Sheets: URL-based sheet detection
 
 ### Utility Modules
-- `utils/llm-extractor.js` - OpenAI GPT-4o-mini integration for v5
+- `utils/llm-extractor.js` - OpenAI GPT-4.1-mini integration for v5
 - `utils/cache-manager.js` - LRU cache for parsed results
 - `utils/batch-processor.js` - Handles large-scale batch processing
 - `utils/context-detector.js` - Pre-processing and context analysis

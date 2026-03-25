@@ -912,7 +912,9 @@ async function processSheet() {
             throw new Error('Failed to process data');
         }
 
-        const data = await apiResponse.json();
+        // Parse response (may have keep-alive whitespace padding from chunked transfer)
+        const rawText = await apiResponse.text();
+        const data = JSON.parse(rawText.trim());
 
         updateModeStatus(mode, 'Processing complete!', 100);
 
@@ -2507,11 +2509,14 @@ async function processTextWithMode(mode, lines) {
             });
 
             if (!response.ok) {
-                const errorBody = await response.json().catch(() => ({}));
+                const errorText = await response.text().catch(() => '{}');
+                const errorBody = JSON.parse(errorText.trim() || '{}');
                 throw new Error(errorBody.error || `Failed to process text (batch ${chunkIdx + 1})`);
             }
 
-            const data = await response.json();
+            // Parse response (may have keep-alive whitespace padding from chunked transfer)
+            const rawText = await response.text();
+            const data = JSON.parse(rawText.trim());
             allResults = allResults.concat(data.results || []);
             totalSuccessful += data.successful || 0;
             totalProcessingTime += data.processingTime || 0;

@@ -18,7 +18,7 @@ graph TB
         V4_PARSER[V4 Parser<br/>Pattern Matching]
         V5_PARSER[V5 Parser<br/>LLM Utilities]
         HIERARCHICAL[Hierarchical Parser V2<br/>Advanced Patterns]
-        LLM_EXTRACTOR[LLM Extractor<br/>GPT-4o-mini Integration]
+        LLM_EXTRACTOR[LLM Extractor<br/>GPT-4.1-mini Integration]
     end
     
     subgraph "Utility Layer"
@@ -36,7 +36,7 @@ graph TB
     end
     
     subgraph "External Services"
-        OPENAI[OpenAI API<br/>GPT-4o-mini]
+        OPENAI[OpenAI API<br/>GPT-4.1-mini]
         GOOGLE_SHEETS[Google Sheets API]
     end
     
@@ -89,7 +89,7 @@ flowchart TD
         V5_CACHE_CHECK -->|Yes| V5_CACHE_RETURN[Return Cached Result]
         V5_CACHE_CHECK -->|No| V5_PREFILTER{Should Skip LLM?}
         V5_PREFILTER -->|Yes| V5_EMPTY[Return Empty Location]
-        V5_PREFILTER -->|No| V5_LLM[LLM Extraction<br/>GPT-4o-mini<br/>Cascading inference]
+        V5_PREFILTER -->|No| V5_LLM[LLM Extraction<br/>GPT-4.1-mini<br/>Cascading inference]
         V5_LLM --> V5_NORMALIZE[Normalize Location<br/>Standard formatting]
         V5_NORMALIZE --> V5_CACHE_STORE[Store in Cache]
         V5_CACHE_STORE --> V5_RESULT[Return Location<br/>~500-2000ms]

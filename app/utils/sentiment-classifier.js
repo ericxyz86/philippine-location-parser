@@ -1,6 +1,6 @@
 /**
  * Sentiment Classifier for Philippine Location Parser
- * Uses GPT-4o-mini for sentiment classification with strict label validation
+ * Uses GPT-4.1-mini for sentiment classification with strict label validation
  * Supports custom entities and sentiment labels
  */
 
@@ -150,11 +150,11 @@ IMPORTANT: The "classification" field must contain ONLY one of these exact label
   }
 
   /**
-   * Call GPT-4o-mini API
+   * Call GPT-4.1-mini API
    */
   async callGPT4oMini(prompt) {
     const response = await this.openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       messages: [{
         role: "user",
         content: prompt

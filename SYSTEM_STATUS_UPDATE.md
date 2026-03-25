@@ -7,7 +7,7 @@
 The Philippine Location Parser has been updated to operate **exclusively with AI-powered location extraction**. The following changes are now in effect:
 
 #### ✅ What's Available
-- **V5 (LLM-first)**: AI-powered extraction using GPT-4o-mini
+- **V5 (LLM-first)**: AI-powered extraction using GPT-4.1-mini
 - **Bring Your Own API Key**: Users must provide their own OpenAI API key
 - **Advanced Caching**: Intelligent caching for repeated queries
 - **Real-time Progress**: Live processing updates

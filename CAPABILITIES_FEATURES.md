@@ -69,7 +69,7 @@ The Philippine Location Parser excels at extracting structured location data fro
 - **Deterministic Output**: Consistent results across runs
 
 #### V5 Mode (LLM-first)
-- **AI-Powered**: GPT-4o-mini integration for superior accuracy
+- **AI-Powered**: GPT-4.1-mini integration for superior accuracy
 - **Context Understanding**: Semantic analysis of text meaning
 - **Cascading Inference**: Automatic completion of partial locations
 - **User API Keys**: Support for bring-your-own-key model
@@ -286,7 +286,7 @@ POST /api/detect-excel-sheets
 ### Third-Party Integrations
 
 #### OpenAI Integration
-- **GPT-4o-mini**: Primary LLM for location extraction
+- **GPT-4.1-mini**: Primary LLM for location extraction
 - **API Key Management**: Flexible key configuration
 - **Rate Limiting**: Built-in throttling and retry logic
 - **Error Handling**: Graceful degradation on API failures

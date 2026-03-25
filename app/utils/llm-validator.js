@@ -1,6 +1,6 @@
 /**
  * LLM Validator for Philippine Location Parser
- * Uses GPT-4o-mini for validation and disambiguation
+ * Uses GPT-4.1-mini for validation and disambiguation
  * Enhanced with context awareness for social media mentions
  */
 
@@ -135,11 +135,11 @@ Examples:
   }
 
   /**
-   * Call GPT-4o-mini API
+   * Call GPT-4.1-mini API
    */
   async callGPT4oMini(prompt) {
     const response = await this.openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4.1-mini",
       messages: [{
         role: "user",
         content: prompt

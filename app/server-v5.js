@@ -1,6 +1,6 @@
 /**
  * Backend Server for Philippine Location Parser v5
- * LLM-First System: Direct extraction with GPT-4o-mini
+ * LLM-First System: Direct extraction with GPT-4.1-mini
  */
 
 require('dotenv').config();
@@ -256,8 +256,8 @@ async function processLLMFirst(text, useLLM = true, llmExtractor = defaultLLMExt
     };
   }
 
-  // LLM-First Extraction - Send directly to GPT-4o-mini
-  console.log('🤖 LLM-First Extraction with GPT-4o-mini...');
+  // LLM-First Extraction - Send directly to GPT-4.1-mini
+  console.log('🤖 LLM-First Extraction with GPT-4.1-mini...');
   try {
     const llmResult = await llmExtractor.extractLocation(text);
 
@@ -326,7 +326,7 @@ app.post('/api/batch-parse', async (req, res) => {
       mode = 'location',  // 'location' | 'sentiment' | 'category'
       useLLM = true,
       parallel = true,
-      batchSize = 5,
+      batchSize = 15,
       sessionId,
       apiKey,
       // Mode-specific parameters
@@ -378,6 +378,14 @@ app.post('/api/batch-parse', async (req, res) => {
     // Estimate processing time
     const estimate = estimateProcessingTime(texts, useLLM);
     console.log(`⏱️ Estimated time: ${estimate.estimatedSeconds}s (${estimate.llmCalls} LLM calls)`);
+
+    // Start chunked response to prevent proxy timeout on large batches
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('X-Accel-Buffering', 'no');
+    const keepAliveInterval = setInterval(() => {
+      try { res.write(' '); } catch (e) { /* connection closed */ }
+    }, 10000);
 
     // Send initial progress update if sessionId provided
     if (sessionId) {
@@ -513,7 +521,10 @@ app.post('/api/batch-parse', async (req, res) => {
       });
     }
 
-    res.json({
+    // Stop keep-alive and send final JSON
+    clearInterval(keepAliveInterval);
+
+    res.end(JSON.stringify({
       success: true,
       mode,
       processed: results.length,
@@ -524,14 +535,19 @@ app.post('/api/batch-parse', async (req, res) => {
       averageTime: avgTime,
       parallel,
       results
-    });
+    }));
 
   } catch (error) {
     console.error('Error batch parsing:', error);
-    res.status(500).json({
-      error: 'Failed to batch parse',
-      details: error.message
-    });
+    if (res.headersSent) {
+      try { clearInterval(keepAliveInterval); } catch (e) {}
+      res.end(JSON.stringify({ error: 'Failed to batch parse', details: error.message }));
+    } else {
+      res.status(500).json({
+        error: 'Failed to batch parse',
+        details: error.message
+      });
+    }
   }
 });
 
@@ -808,6 +824,7 @@ app.post('/api/upload-excel', upload.single('file'), async (req, res) => {
 
 /**
  * API endpoint to process Google Sheets (multi-mode support)
+ * Uses chunked Transfer-Encoding to keep the connection alive during long processing
  */
 app.post('/api/process-google-sheet', async (req, res) => {
   try {
@@ -917,18 +934,27 @@ app.post('/api/process-google-sheet', async (req, res) => {
       mode
     });
 
+    // Start chunked response to prevent proxy timeout
+    // Send keep-alive whitespace every 10s while processing
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    const keepAliveInterval = setInterval(() => {
+      try { res.write(' '); } catch (e) { /* connection closed */ }
+    }, 10000);
+
     // Process texts through parallel batch system
     console.log(`\n📊 Processing Google Sheet with ${texts.length} rows in ${mode} mode...`);
     console.log('═'.repeat(50));
 
     const startTime = Date.now();
 
-    // Determine optimal batch size based on dataset size
-    let batchSize = 10; // Default for medium datasets
-    if (texts.length > 200) {
-      batchSize = 15; // Larger batch for big datasets
+    // Higher concurrency for faster processing (like BYD dashboard)
+    let batchSize = 15;
+    if (texts.length > 500) {
+      batchSize = 20;
     } else if (texts.length < 50) {
-      batchSize = 5; // Smaller batch for small datasets
+      batchSize = 10;
     }
 
     // Define processing function based on mode
@@ -975,6 +1001,9 @@ app.post('/api/process-google-sheet', async (req, res) => {
       }
     });
 
+    // Stop keep-alive
+    clearInterval(keepAliveInterval);
+
     // Count successes (mode-specific)
     let successCount = 0;
     results.forEach(result => {
@@ -1010,7 +1039,8 @@ app.post('/api/process-google-sheet', async (req, res) => {
       mode
     });
 
-    res.json({
+    // Write final JSON and end response
+    res.end(JSON.stringify({
       success: true,
       mode,
       processed: results.length,
@@ -1020,14 +1050,19 @@ app.post('/api/process-google-sheet', async (req, res) => {
       processingTime,
       averageTime: avgTime,
       results
-    });
+    }));
 
   } catch (error) {
     console.error('Error processing Google Sheet:', error);
-    res.status(500).json({
-      error: 'Failed to process sheet',
-      details: error.message
-    });
+    // If headers already sent (chunked), just end
+    if (res.headersSent) {
+      res.end(JSON.stringify({ error: 'Failed to process sheet', details: error.message }));
+    } else {
+      res.status(500).json({
+        error: 'Failed to process sheet',
+        details: error.message
+      });
+    }
   }
 });
 
@@ -1119,7 +1154,7 @@ app.listen(PORT, () => {
   console.log(`  ⚠️  Users MUST provide their own OpenAI API key`);
   console.log(`  ⚠️  Server fallback key is DISABLED`);
   console.log(`\nFeatures:`);
-  console.log(`  - LLM-First extraction system (GPT-4o-mini)`);
+  console.log(`  - LLM-First extraction system (GPT-4.1-mini)`);
   console.log(`  - Per-user API key support`);
   console.log(`  - Direct location extraction with cascading inference`);
   console.log(`\nAPI endpoints:`);

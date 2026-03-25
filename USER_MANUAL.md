@@ -6,7 +6,7 @@ The Philippine Location Parser turns unstructured text into structured Philippin
 ## 2. System Requirements
 - **Node.js 18+** and npm (for running the local web server)
 - **Modern browser** (Chrome, Edge, Firefox, or Safari) with JavaScript enabled
-- **OpenAI API key** with GPT-4o-mini access (bring-your-own-key model)
+- **OpenAI API key** with GPT-4.1-mini access (bring-your-own-key model)
 - Optional: **Google account** with permission to run Apps Script projects if you plan to use the spreadsheet add-on
 
 ## 3. Quick Start Checklist

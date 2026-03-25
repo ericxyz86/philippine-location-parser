@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-The Philippine Location Parser extracts location information from text using advanced AI-powered location extraction with GPT-4o-mini. Perfect for processing social media comments, customer feedback, or any text containing Philippine locations.
+The Philippine Location Parser extracts location information from text using advanced AI-powered location extraction with GPT-4.1-mini. Perfect for processing social media comments, customer feedback, or any text containing Philippine locations.
 
 ## Getting Started
 
@@ -11,7 +11,7 @@ The Philippine Location Parser extracts location information from text using adv
 ```bash
 cd app
 npm install
-npm start                    # V5 (AI-powered with GPT-4o-mini)
+npm start                    # V5 (AI-powered with GPT-4.1-mini)
 ```
 
 Visit **http://localhost:3002** in your browser.
@@ -94,7 +94,7 @@ Each extracted location includes:
 
 **⚠️ API Key is REQUIRED for all operations**
 
-The Philippine Location Parser now operates exclusively with AI-powered extraction using GPT-4o-mini:
+The Philippine Location Parser now operates exclusively with AI-powered extraction using GPT-4.1-mini:
 
 1. Get an OpenAI API key from https://platform.openai.com
 2. Click **"Save API Key"** in the interface
