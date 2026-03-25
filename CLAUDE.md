@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Codebase Overview
 
-Philippine Location Parser - A dual-mode location extraction system for Philippine addresses. The system has two operational modes: v4 (rule-based, offline) and v5 (LLM-first, requires OpenAI API).
+Philippine Location Parser & Text Classifier — a multi-mode text processing tool supporting location extraction, sentiment classification, and category classification. Uses GPT-4.1-mini with batched parallel processing for high-throughput classification.
+
+**Live at:** https://location-parser.aiailabs.net (behind Cloudflare Access)
+**Hosted on:** Coolify (Hetzner CAX31) via Nixpacks build
+**Coolify UUID:** `rcc44cw884owgk00ooo4k4c0`
 
 ## Essential Commands
 
@@ -15,7 +19,6 @@ npm start               # Run v5 server (default, LLM-first, port 3002)
 npm run start:v4        # Run v4 server (rule-based, offline)
 npm run dev             # v5 with auto-reload
 npm run dev:v4          # v4 with auto-reload
-npm run start:llm       # Alias for npm start
 ```
 
 ### Testing
@@ -23,166 +26,125 @@ npm run start:llm       # Alias for npm start
 npm test                # Run v4 core tests
 npm run test:regression # Run edge case tests
 npm run test:all        # Run all test suites
-node tests/test-regression.js  # Run specific regression test
 ```
 
-### Server Management
+### Deployment
 ```bash
-lsof -ti:3002 | xargs kill -9  # Kill existing server on port 3002
-curl http://localhost:3002/api/health  # Check server status (if endpoint exists)
+git push                # Coolify auto-deploys from GitHub (Nixpacks)
+# Manual redeploy: Coolify dashboard → location-parser → Redeploy
+# Build pack: Nixpacks (not Dockerfile)
+# Install cmd: cd app && npm install
+# Start cmd: cd app && npm start
 ```
 
 ## Architecture
 
 ### Project Structure
 ```
-location-parser/
-├── app/                    # Main application (all work happens here)
-│   ├── server-v4.js       # Rule-based server
-│   ├── server-v5.js       # LLM-first server (default)
-│   ├── index.html         # Web interface
-│   ├── app-v4.js          # Frontend JavaScript
-│   ├── parsers/           # Location parsing modules
-│   ├── utils/             # Helper utilities
-│   ├── data/              # Location databases
-│   └── tests/             # Test suites
-├── package.json           # Root package (minimal)
-└── app/package.json       # App dependencies
+philippine-location-parser/
+├── Dockerfile              # Available but Coolify uses Nixpacks
+├── app/                    # Main application
+│   ├── server-v5.js        # LLM-first server (default, port 3002)
+│   ├── server-v4.js        # Rule-based server (legacy)
+│   ├── index.html          # Web interface
+│   ├── app-v4.js           # Frontend JavaScript (chunked requests)
+│   ├── parsers/            # Location parsing modules
+│   ├── utils/              # Classifiers & helpers
+│   │   ├── llm-extractor.js        # GPT-4.1-mini location extraction
+│   │   ├── llm-validator.js        # GPT-4.1-mini validation
+│   │   ├── sentiment-classifier.js # Batched sentiment (5 workers × 30/call)
+│   │   ├── category-classifier.js  # Batched category (5 workers × 30/call)
+│   │   ├── batch-processor.js      # Sliding-window parallel processor
+│   │   ├── cache-manager.js        # LRU cache
+│   │   ├── sheet-parser.js         # CSV/Excel extraction
+│   │   └── sheet-detector.js       # Multi-sheet detection
+│   ├── data/               # Location databases
+│   └── tests/              # Test suites
+└── app/package.json        # Dependencies (openai, express, xlsx, etc.)
 ```
 
-### Dual-Mode System
-- **V4**: Rule-based parser using `hierarchical-parser-v2.js` with offline database lookup
-- **V5** (Default): LLM-first extraction using `utils/llm-extractor.js` with GPT-4.1-mini
+### Three Processing Modes
 
-### Key Components
+1. **Location** — Extracts Philippine location hierarchy (region/province/city/barangay) per item via GPT-4.1-mini. Per-item processing with concurrency 15.
 
-**Frontend Flow**: `index.html` → `app-v4.js` → API calls to server (port 3002)
+2. **Sentiment** — Classifies text sentiment toward a specified entity. **Batched**: 30 texts per API call, 5 concurrent workers. 499 items ≈ 17 API calls instead of 499.
 
-**V4 Processing Pipeline**:
-1. `server-v4.js` receives request
-2. `parsers/hierarchical-parser-v2.js` extracts locations via rule-based patterns
-3. `parsers/location-normalizer.js` formats output (Metro Manila conversion, proper case)
-4. Returns normalized location hierarchy
+3. **Category** — Classifies text into user-defined categories with optional hints. **Batched**: same as sentiment (30/call, 5 workers).
 
-**V5 Processing Pipeline** (default):
-1. `server-v5.js` receives request
-2. `utils/llm-extractor.js` sends text directly to GPT-4.1-mini for location extraction
-3. LLM returns structured location data (region, province, city, barangay)
-4. `parsers/location-normalizer.js` formats output
-5. Returns location with confidence scores and caching
+### Input Methods (all modes)
+- **Paste text** — textarea → frontend chunks (50/request) → `/api/batch-parse`
+- **CSV upload** — parsed client-side → textarea → same flow
+- **Excel upload** — server extracts → textarea → same flow  
+- **Google Sheets** — server fetches CSV export → processes server-side via `classifyAll()`
 
-**Multi-Sheet Support**:
-- `utils/sheet-detector.js` detects sheets in Excel/Google Sheets
-- `utils/sheet-parser.js` extracts data from CSV/Excel files
-- Dynamic sheet selection UI in frontend
-- Excel files: Full sheet name detection via XLSX library
-- Google Sheets: URL-based sheet detection
+### Key Design Decisions
 
-### Utility Modules
-- `utils/llm-extractor.js` - OpenAI GPT-4.1-mini integration for v5
-- `utils/cache-manager.js` - LRU cache for parsed results
-- `utils/batch-processor.js` - Handles large-scale batch processing
-- `utils/context-detector.js` - Pre-processing and context analysis
-- `utils/false-positive-filter.js` - Filters out non-location matches
-- `utils/psgc-api.js` - Philippine Standard Geographic Code API integration
+**Batched Classification (Sentiment/Category):**
+- Pattern borrowed from [chewy-byd](https://github.com/ericxyz86/chewy-byd) dashboard
+- `classifyAll()` method splits texts into batches of 30, processes with 5 concurrent workers
+- Each API call classifies 30 texts at once (returns JSON array of labels)
+- ~15-30x faster than per-item classification
 
-### Location Normalization Rules (location-normalizer.js)
+**Proxy Timeout Prevention:**
+- Chunked Transfer-Encoding with keep-alive whitespace every 10s
+- `X-Accel-Buffering: no` header to disable nginx/Caddy buffering
+- Frontend uses `response.text()` + `JSON.parse(rawText.trim())` to handle whitespace padding
+
+**429 Rate Limit Handling:**
+- Exponential backoff: 5s × attempt for rate limits, 1s × attempt for other errors
+- Max 2 retries per batch
+
+## API Endpoints
+
+- `POST /api/batch-parse` — Multi-mode batch processing (location/sentiment/category)
+- `POST /api/parse-text` — Single text parsing
+- `POST /api/process-google-sheet` — Google Sheets URL integration
+- `POST /api/upload-excel` — Excel file upload + extraction
+- `POST /api/detect-excel-sheets` — Excel multi-sheet detection
+- `POST /api/classify-sentiment` — Single sentiment classification
+- `POST /api/classify-category` — Single category classification
+- `GET /api/progress-stream/:sessionId` — SSE progress updates
+- `GET /api/status` — Server health check
+
+## Environment Variables
+
+```env
+OPENAI_API_KEY=sk-...   # Optional server-side fallback (users provide their own)
+PORT=3002               # Server port
+NODE_ENV=production     # Production mode
+```
+
+Note: Users provide their own OpenAI API key in the browser UI. The server-side key is a fallback only.
+
+## Performance Characteristics
+
+| Mode | Method | 499 items | API calls |
+|------|--------|-----------|-----------|
+| Sentiment | Batched (30/call, 5 workers) | ~10-15s | ~17 |
+| Category | Batched (30/call, 5 workers) | ~10-15s | ~17 |
+| Location | Per-item (concurrency 15) | ~30-45s | ~499 |
+
+## Common Issues
+
+1. **Proxy timeout** — Fixed with chunked transfer encoding + keep-alive. If it recurs, reduce BATCH_SIZE or CONCURRENCY in classifier files.
+2. **429 rate limits** — Users on OpenAI free tier may hit RPM limits. Backoff is automatic but processing slows. Upgrade API tier.
+3. **Port conflicts** — `lsof -ti:3002 | xargs kill -9`
+4. **Coolify not deploying** — Auto-deploy may not trigger. Manual redeploy via Coolify dashboard.
+5. **Build pack** — Uses Nixpacks (not Dockerfile). Install/start commands configured in Coolify.
+
+## Location Normalization Rules
+
 - NCR districts → "Metro Manila"
-- "CITY OF X" → "X City"
+- "CITY OF X" → "X City"  
 - POBLACION variants → "Poblacion"
 - ALL CAPS → Proper Case
 - Empty fields → "None"
 
-## API Endpoints
+## V4 Parser (Legacy)
 
-Both v4 and v5 servers expose:
-- `POST /api/parse-text` - Single text parsing
-- `POST /api/batch-parse` - Multiple texts with batch processing
-- `POST /api/process-sheet` - CSV/Excel file processing
-- `POST /api/process-google-sheet` - Google Sheets URL integration
-- File upload endpoints for Excel/CSV files
-
-## Important Context
-
-- **Working Directory**: All development work happens in `app/` directory - always `cd app` first
-- **Default Mode**: System defaults to v5 (LLM-first) as of current version
-- **V5 requires** `.env` file with `OPENAI_API_KEY` in app/ directory
-- **V4 advantages**: Offline operation, no API costs, consistent performance
-- **V5 advantages**: Better accuracy on ambiguous text, handles Filipino/English mixed patterns
-- The normalizer (`location-normalizer.js`) ensures consistent output format
-- **September 2024 Refactoring**: Codebase reorganized into app/ folder structure
-- **Multi-Sheet Support**: Full support for Excel/CSV/Google Sheets with multiple tabs
-- **Caching**: V5 includes result caching to reduce API calls and improve performance
-
-## V4 Parser Patterns (location-parser-v4.js)
-
-**Pattern Recognition**:
-- Filipino patterns: "taga", "dito sa", "nasa", "wala sa", "galing sa"
-- Bisaya/Cebuano: "naa", "nia", "gikan sa"
+Rule-based offline parser in `parsers/hierarchical-parser-v2.js`:
+- Filipino patterns: "taga", "dito sa", "nasa"
+- Bisaya/Cebuano: "naa", "nia", "gikan sa"  
 - Hashtag extraction: `#AlterBacolod` → Bacolod
-- AF slang: "sarado AF malolos" → Malolos
-- Abbreviations: QC, BGC, Gensan via LOCATION_ALIASES map
-
-**Parser Configuration**:
-- `minMatchScore: 30` - Minimum fuzzy match threshold
-- `minStringLength: 4` - Minimum location string length
-- Hierarchical fallback: Returns most specific level available
-
-## Testing
-
-**Test Suites** (in `app/tests/`):
-- `test-v4.js` - V4 parser unit tests
-- `test-regression.js` - Edge case regression tests
-- `test-real-dataset.js` - Real social media data validation
-- `test-performance.js` - Performance benchmarks
-- `test-false-positives.js` - False positive detection
-
-**Critical Edge Cases**:
-- Bacolod hashtag detection (#AlterBacolod)
-- Caraga region mapping
-- NCR district normalization (districts → Metro Manila)
-- City prefix handling ("CITY OF" → "X City")
-- Abbreviation resolution (QC→Quezon City, BGC→Taguig)
-
-## Common Issues
-
-1. **Port conflicts**: Kill process on 3002 before starting: `lsof -ti:3002 | xargs kill -9`
-2. **Working directory**: Must run commands from `app/` directory, not root
-3. **Missing .env**: V5 requires OPENAI_API_KEY in `app/.env`
-4. **Import path errors**: All parsers use relative paths (./data/, ./utils/, ./parsers/)
-5. **Database not found**: Ensure `app/data/` folder exists with location databases
-
-## Quick Task Reference
-
-### Add New Location Alias
-Edit `LOCATION_ALIASES` map in `app/parsers/location-parser-v4.js`
-
-### Adjust V4 Match Sensitivity
-Modify `config.minMatchScore` in `app/parsers/location-parser-v4.js` (current: 30)
-
-### Change Normalization Rules
-Edit functions in `app/parsers/location-normalizer.js` (toProperCase, normalizeProvince, etc.)
-
-### Add Test Case
-Add to test arrays in `app/tests/test-regression.js` or create new test file
-
-### Switch Between V4/V5
-```bash
-cd app
-npm run start:v4    # Rule-based, offline, no API needed
-npm start           # LLM-first (requires OPENAI_API_KEY in .env)
-```
-
-### Configure OpenAI API
-Create `app/.env` file:
-```
-OPENAI_API_KEY=sk-...
-PORT=3002
-```
-
-## Performance Notes
-
-- **V4**: ~10-50ms per parse, offline operation
-- **V5**: ~500-2000ms per parse (LLM latency), with caching for repeated queries
-- **V5 accuracy**: Higher on ambiguous/mixed-language text
-- **V4 accuracy**: 80.6% extraction rate on social media posts (see IMPROVEMENTS.md)
+- Abbreviations: QC, BGC, Gensan via LOCATION_ALIASES
+- ~80.6% extraction rate, ~10-50ms per parse

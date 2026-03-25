@@ -1,36 +1,54 @@
 # Repository Guidelines
 
+## Project Overview
+Philippine Location Parser & Text Classifier — multi-mode text processing (location extraction, sentiment classification, category classification) using GPT-4.1-mini with batched parallel processing. Deployed on Coolify (Hetzner) at https://location-parser.aiailabs.net.
+
 ## Project Structure & Module Organization
-- Root directory holds high-level docs (`README.md`, `CODEBASE_ANALYSIS.md`) and quick-run scripts (`test-*.js`) that exercise shipped Google Apps Script assets.
-- Primary service code lives in `app/`, with `parsers/` for PSGC-aware extraction logic, `utils/` for shared helpers (LLM wrapper, batching, caching), and `server-v5.js` as the default HTTP entry point.
+- Primary service code lives in `app/`, with `parsers/` for PSGC-aware extraction logic, `utils/` for classifiers and helpers, and `server-v5.js` as the default HTTP entry point.
+- `utils/sentiment-classifier.js` and `utils/category-classifier.js` use batched parallel classification (30 texts/call, 5 workers) — pattern from chewy-byd.
+- `utils/llm-extractor.js` handles per-item location extraction with GPT-4.1-mini.
+- Frontend (`app-v4.js`) chunks large datasets into batches of 50 per HTTP request to prevent proxy timeouts.
+- Server endpoints use chunked Transfer-Encoding with keep-alive whitespace to prevent reverse proxy timeouts.
 - Test data and CSV fixtures sit under `app/data/` and alongside `demo-*.csv` for manual verification.
-- Browser assets and scripted demos use `app/index.html` and `app/docs/`; keep new assets co-located with their owning module.
 
 ## Build, Test, and Development Commands
-- Install dependencies: `npm install --prefix app` (frontend/backend bundle) and `npm install` at the repo root when adding lightweight CLI scripts.
-- Start the v5 service: `npm start --prefix app` (Express server with LLM-first pipeline); legacy variants use `npm run start:v4 --prefix app`.
-- Hot-reload during development: `npm run dev --prefix app` (nodemon watching `server-v5.js`).
-- Run regression suite: `npm run test:all --prefix app` to execute v4 smoke tests, regression comparisons, and MCP checks.
-- Spot-check quick datasets: `node test-full-dataset.js` or `node test-llm-first.js` from the repo root for targeted validation.
+- Install dependencies: `npm install --prefix app`
+- Start v5 service: `npm start --prefix app` (Express on port 3002)
+- Hot-reload: `npm run dev --prefix app` (nodemon)
+- Run tests: `npm run test:all --prefix app`
+- Deploy: `git push` (Coolify auto-deploys via Nixpacks, or manual redeploy from dashboard)
+
+## Deployment Details
+- **Platform:** Coolify on Hetzner CAX31
+- **Build pack:** Nixpacks (not Dockerfile)
+- **Install cmd:** `cd app && npm install`
+- **Start cmd:** `cd app && npm start`
+- **Coolify UUID:** `rcc44cw884owgk00ooo4k4c0`
+- **Auth:** Cloudflare Access (email-based)
+- **Domain:** https://location-parser.aiailabs.net
 
 ## Coding Style & Naming Conventions
-- Use modern Node.js (ES2019+) features, two-space indentation, dangling commas avoided, and semicolons included.
-- Prefer `const`/`let` over `var`, camelCase for functions and variables, PascalCase for constructors, and kebab-case filenames (`server-v5.js`, `test-social-fix.js`).
-- Keep modules focused; exports should group related helpers (see `app/utils/context-detector.js`) and surface explicit factory functions.
-- Document non-obvious logic with concise block comments before complex pipelines; inline comments should explain intent, not syntax.
+- Modern Node.js (ES2019+), two-space indentation, semicolons included.
+- `const`/`let` over `var`, camelCase functions, PascalCase constructors, kebab-case filenames.
+- Keep modules focused with explicit exports.
+
+## Key Architecture Decisions
+- **Sentiment/Category modes** use `classifyAll()` which batches 30 texts per API call with 5 concurrent workers. This is ~15-30x faster than per-item classification.
+- **Location mode** uses per-item extraction (concurrency 15) because structured location output doesn't batch well.
+- **429 rate limit handling** uses exponential backoff (5s × attempt for rate limits).
+- **Proxy timeout prevention** via chunked transfer encoding + keep-alive whitespace every 10s + `X-Accel-Buffering: no` header.
+- **All model references use `gpt-4.1-mini`** across all four utility modules.
 
 ## Testing Guidelines
-- Co-locate scenario tests under `app/tests/`; follow the `test-*.js` naming pattern for discoverability.
-- Each new parser or util must include regression coverage that exercises Philippine-specific edge cases (code-switching, abbreviations, barangay-only inputs).
-- Run `npm test --prefix app` before pushing and attach dataset snippets or failure deltas when updating fixtures.
-- For LLM-dependent paths, record mocked expectations where feasible and note any external rate limits in the PR description.
+- Co-locate tests under `app/tests/` with `test-*.js` naming pattern.
+- Each parser/util must include Philippine-specific edge case coverage.
+- Run `npm test --prefix app` before pushing.
 
 ## Commit & Pull Request Guidelines
-- Match existing history: short, imperative commit messages (`added footer`, `documentation`). Reference issue IDs at the end only when necessary.
-- Each PR should summarize scope, list commands executed (`npm run test:all --prefix app`), and call out data or configuration impacts.
-- Include screenshots or CSV diffs when UI demos (`app/index.html`) or batch exports change; link to affected docs if you update guidance.
+- Short imperative commit messages.
+- Summarize scope, list commands executed, call out data/config impacts.
 
-## Environment & Security Notes
-- Store secrets in `.env` (example: `OPENAI_API_KEY`, optional `PORT`); never commit keys. Sample defaults should go in `.env.example`.
-- The PSGC API is unauthenticated, but OpenAI access is per-user; validate keys via the built-in `validateApiKey` helper before invoking GPT.
-- Cache-heavy features use in-memory stores (`app/utils/cache-manager.js`); size choices must balance λ memory budgets and on-prem deployments.
+## Environment & Security
+- Users provide their own OpenAI API key via browser UI (stored in localStorage).
+- Optional server-side `OPENAI_API_KEY` in `.env` as fallback.
+- Never commit API keys.

@@ -1,178 +1,125 @@
-# Context-Aware Location Parser for Google Sheets
+# Philippine Location Parser & Text Classifier
 
-A Google Apps Script that intelligently parses user comments to determine their actual location using the Philippine Standard Geographic Code (PSGC) API v2. The script features context-aware NLP to distinguish between the user's location and other locations mentioned in their comments.
+A multi-mode text processing tool for Philippine locations, sentiment analysis, and category classification. Uses GPT-4.1-mini with batched parallel processing for high-throughput classification.
+
+**Live:** [location-parser.aiailabs.net](https://location-parser.aiailabs.net)
 
 ## Features
 
-### Context-Aware Location Detection
-- **User Location Patterns**: Identifies statements like "I'm from Manila", "Here in Davao", "Taga-Makati ako"
-- **Other Location Filtering**: Distinguishes between user's location and places they mention (visited, compared to, etc.)
-- **Confidence Scoring**: Rates detection confidence from 0-100% based on pattern strength
-- **Filipino Language Support**: Recognizes Filipino phrases like "taga", "galing", "dito sa"
+### Three Processing Modes
 
-### PSGC API Integration
-- Searches across all administrative levels (Barangay, City/Municipality, Province, Region)
-- Handles location name variations and common abbreviations
-- Returns detailed location data with administrative level classification
+- **Location Extraction** — Extracts Philippine location hierarchy (Region → Province → City → Barangay) from unstructured text using AI-powered extraction with GPT-4.1-mini
+- **Sentiment Classification** — Classifies text sentiment toward a specified entity with custom labels (e.g., Positive/Neutral/Negative)
+- **Category Classification** — Classifies text into user-defined categories with optional descriptive hints
 
-### Google Sheets Integration
-- Custom functions: `PARSE_LOCATION()` and `PARSE_LOCATION_DETAILED()`
-- Batch processing for multiple comments
-- Interactive testing dialog
-- Custom menu for easy access
+### Multiple Input Methods
 
-## Installation
+- **Paste text** — Directly paste rows of text
+- **CSV upload** — Upload CSV files with column selection
+- **Excel upload** — Upload .xlsx/.xls with multi-sheet support
+- **Google Sheets** — Paste a public Google Sheets URL with column/sheet selection
 
-1. Open your Google Sheets document
-2. Go to **Extensions > Apps Script**
-3. Delete any existing code in the editor
-4. Copy and paste the contents of `LocationParser.gs`
-5. Create a new HTML file named `TestDialog.html`
-6. Copy and paste the contents of `TestDialog.html`
-7. Save the project (File > Save)
-8. Reload your Google Sheets document
+### Performance
 
-## Usage
+Batched parallel classification (inspired by [chewy-byd](https://github.com/ericxyz86/chewy-byd)):
 
-### Custom Functions
+| Mode | 500 items | Approach |
+|------|-----------|----------|
+| Sentiment | ~10-15s | 30 texts/API call, 5 concurrent workers |
+| Category | ~10-15s | 30 texts/API call, 5 concurrent workers |
+| Location | ~30-45s | Per-item extraction, 15 concurrent |
 
-#### Location Hierarchy Extraction
-```
-=PARSE_LOCATION(A2)
-```
-Returns a row with 4 columns: Region, Province, City/Municipality, Barangay
+### Other Features
 
-#### Detailed Location Analysis
-```
-=PARSE_LOCATION_DETAILED(A2)
-```
-Returns a row with 7 columns:
-- Region
-- Province
-- City/Municipality
-- Barangay
-- Confidence score (0-1)
-- Other mentioned locations
-- Matched location name
+- Real-time progress tracking via Server-Sent Events (SSE)
+- CSV download of results
+- In-browser API key storage (bring your own OpenAI key)
+- Result caching to reduce duplicate API calls
+- Filipino/Tagalog/Bisaya language support for location extraction
+- Context-aware NLP ("taga-Makati" vs "visited Makati")
 
-#### Individual Component Functions
-```
-=GET_REGION(A2)      // Returns just the Region
-=GET_PROVINCE(A2)    // Returns just the Province
-=GET_CITY(A2)        // Returns just the City/Municipality
-=GET_BARANGAY(A2)    // Returns just the Barangay
+## Quick Start
+
+### Local Development
+
+```bash
+cd app
+npm install
+cp .env.example .env    # Add your OPENAI_API_KEY
+npm start               # Runs on http://localhost:3002
 ```
 
-### Menu Functions
+### Using the App
 
-After installation, a **"Location Parser"** menu appears with options:
-- **Parse Selected Comments**: Process multiple comments at once
-- **Setup Headers**: Create formatted headers for results
-- **Test Parser**: Open interactive testing dialog
+1. Open the app in your browser
+2. Enter your OpenAI API key (stored in browser localStorage)
+3. Select a mode (Location / Sentiment / Category)
+4. Configure mode settings (entity, labels, categories)
+5. Input data via text paste, file upload, or Google Sheets URL
+6. Click Process — results appear in real-time
+7. Download results as CSV
+
+## Deployment
+
+Deployed on **Coolify** (Hetzner) with Nixpacks build:
+
+```bash
+git push origin main    # Auto-deploys to Coolify
+```
+
+- **URL:** https://location-parser.aiailabs.net
+- **Build:** Nixpacks (Node.js detection)
+- **Port:** 3002
+- **Auth:** Cloudflare Access (email-based login)
+
+## API
 
 ### Batch Processing
-
-1. Select the column containing comments
-2. Click **Location Parser > Parse Selected Comments**
-3. Results appear in columns to the right
-
-## How It Works
-
-### Context Analysis Pipeline
-
-1. **Pattern Matching**: Searches for user location indicators
-   - Direct statements: "I am from", "I live in"
-   - Implicit patterns: "Here in", "Our barangay"
-   - Professional context: "I work in", "Stationed at"
-
-2. **Other Location Detection**: Identifies non-user locations
-   - Travel mentions: "visited", "went to"
-   - Comparisons: "unlike", "compared to"
-   - Past locations: "moved from", "left"
-
-3. **Confidence Calculation**: Scores based on pattern strength
-   - 95%: "I am from [location]"
-   - 90%: "Here in [location]"
-   - 75%: "Work in [location]"
-   - 50%: Inferred locations
-
-4. **PSGC Validation**: Verifies location exists in Philippine database
-   - Searches all administrative levels
-   - Handles name variations
-   - Returns best match with metadata
-
-## Example Output
-
-The parser returns complete location hierarchy:
-
 ```
-Comment: "I'm from Quezon City but I visited Cebu last week"
-Output:
-  → Region: National Capital Region
-  → Province: Metro Manila
-  → City: Quezon City
-  → Barangay: (empty if not specified)
-  → Confidence: 95%
-  → Other Mentions: Cebu
-
-Comment: "Here in Barangay Poblacion, Makati"
-Output:
-  → Region: National Capital Region
-  → Province: Metro Manila
-  → City: Makati City
-  → Barangay: Poblacion
-  → Confidence: 90%
-
-Comment: "Taga-Davao City ako"
-Output:
-  → Region: Davao Region
-  → Province: Davao del Sur
-  → City: Davao City
-  → Barangay: (empty)
-  → Confidence: 88%
+POST /api/batch-parse
+{
+  "texts": ["text1", "text2", ...],
+  "mode": "sentiment",           // location | sentiment | category
+  "apiKey": "sk-...",
+  "entity": "PLDT Home",         // sentiment mode
+  "sentimentLabels": ["Positive", "Neutral", "Negative"],
+  "categories": ["Billing", "Network"],  // category mode
+  "categoryHints": { "Billing": "payment and invoice issues" }
+}
 ```
 
-## API Reference
+### Google Sheets
+```
+POST /api/process-google-sheet
+{
+  "sheetUrl": "https://docs.google.com/spreadsheets/d/...",
+  "columnRange": "B:B",
+  "mode": "sentiment",
+  "apiKey": "sk-...",
+  ...mode-specific params
+}
+```
 
-### Main Functions
+### Progress Stream
+```
+GET /api/progress-stream/:sessionId
+```
 
-#### `parseUserLocation(comment)`
-- **Input**: String comment
-- **Output**: Object with location data and confidence
-- **Description**: Core parsing function with full context analysis
+## Tech Stack
 
-#### `PARSE_LOCATION(comment)`
-- **Input**: Cell reference or string
-- **Output**: Location name string
-- **Description**: Simple custom function for spreadsheet formulas
+- **Backend:** Node.js + Express
+- **Frontend:** Vanilla HTML/JS (single-page)
+- **AI:** OpenAI GPT-4.1-mini
+- **Hosting:** Coolify on Hetzner (Nixpacks)
+- **Auth:** Cloudflare Access
+- **Data:** Philippine Standard Geographic Code (PSGC) for location validation
 
-#### `PARSE_LOCATION_DETAILED(comment)`
-- **Input**: Cell reference or string
-- **Output**: Array [location, level, confidence, others]
-- **Description**: Detailed custom function with metadata
+## Cost
 
-### Configuration
-
-The script uses the PSGC Cloud API v2:
-- Base URL: `https://psgc.cloud/api/v2`
-- No authentication required
-- Rate limiting: Handled automatically
-
-## Limitations
-
-- Currently optimized for Philippine locations only
-- API rate limits may affect large batch processing
-- Internet connection required for PSGC API calls
-- Maximum confidence for inferred locations is 50%
-
-## Error Handling
-
-The script includes comprehensive error handling:
-- Invalid input validation
-- API connection failures
-- Rate limiting responses
-- Graceful fallbacks for unrecognized locations
+Users provide their own OpenAI API key. GPT-4.1-mini is very affordable:
+- ~$0.30-0.50 per 1,000 texts (sentiment/category)
+- ~$0.50-1.00 per 1,000 texts (location extraction)
 
 ## License
 
-This script is provided as-is for educational and commercial use.
+MIT
