@@ -2398,6 +2398,7 @@ function clearModeResults(mode) {
 
 /**
  * Process text with specific mode
+ * Uses chunked requests to avoid Render free-tier proxy timeout (~30s)
  */
 async function processTextWithMode(mode, lines) {
     const existingState = getModeState(mode);
@@ -2430,31 +2431,35 @@ async function processTextWithMode(mode, lines) {
 
     showModeStatus(mode, 'Initializing processing...', 5);
 
+    // Chunk size: keep each request under ~25s to avoid proxy timeout
+    // With concurrency 5 and ~300ms per LLM call, 50 items ≈ 3s
+    const CHUNK_SIZE = 50;
+
     let eventSource = null;
     try {
         eventSource = new EventSource(`/api/progress-stream/${state.sessionId}`);
         setModeState(mode, { eventSource });
 
+        let totalProcessed = 0;
+
         eventSource.onmessage = (event) => {
             const data = JSON.parse(event.data);
 
             if (data.type === 'progress') {
-                const progress = data.percentage || 0;
+                // Adjust progress to reflect overall position across chunks
+                const overallCurrent = totalProcessed + (data.current || 0);
+                const overallPercentage = Math.round((overallCurrent / lines.length) * 100);
                 const message = data.currentText ?
                     `Processing: ${data.currentText}` :
                     'Processing data...';
 
-                updateModeStatus(mode, message, progress, {
-                    current: data.current,
-                    total: data.total,
+                updateModeStatus(mode, message, overallPercentage, {
+                    current: overallCurrent,
+                    total: lines.length,
                     estimatedRemaining: data.estimatedRemaining
                 });
             } else if (data.type === 'completed') {
-                updateModeStatus(mode, 'Processing complete!', 100);
-                if (eventSource) {
-                    eventSource.close();
-                    setModeState(mode, { eventSource: null });
-                }
+                // Only show complete when all chunks done (handled below)
             }
         };
 
@@ -2466,44 +2471,84 @@ async function processTextWithMode(mode, lines) {
             }
         };
 
-        // Call the API with mode-specific configuration
-        const response = await fetch('/api/batch-parse', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                texts: lines,
-                useLLM: true,
-                sessionId: state.sessionId,
-                apiKey: getApiKey(),
-                ...config
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to process text');
+        // Split lines into chunks and process sequentially
+        const chunks = [];
+        for (let i = 0; i < lines.length; i += CHUNK_SIZE) {
+            chunks.push(lines.slice(i, i + CHUNK_SIZE));
         }
 
-        const data = await response.json();
+        let allResults = [];
+        let totalSuccessful = 0;
+        let totalProcessingTime = 0;
+        const overallStartTime = Date.now();
+
+        for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+            const chunk = chunks[chunkIdx];
+            const chunkLabel = chunks.length > 1 ? ` (batch ${chunkIdx + 1}/${chunks.length})` : '';
+
+            updateModeStatus(mode, `Processing${chunkLabel}...`,
+                Math.round((totalProcessed / lines.length) * 100), {
+                    current: totalProcessed,
+                    total: lines.length
+                });
+
+            const response = await fetch('/api/batch-parse', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    texts: chunk,
+                    useLLM: true,
+                    sessionId: state.sessionId,
+                    apiKey: getApiKey(),
+                    ...config
+                })
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.json().catch(() => ({}));
+                throw new Error(errorBody.error || `Failed to process text (batch ${chunkIdx + 1})`);
+            }
+
+            const data = await response.json();
+            allResults = allResults.concat(data.results || []);
+            totalSuccessful += data.successful || 0;
+            totalProcessingTime += data.processingTime || 0;
+            totalProcessed += chunk.length;
+        }
+
+        // Build merged response matching original format
+        const mergedData = {
+            success: true,
+            mode,
+            processed: allResults.length,
+            successful: totalSuccessful,
+            successRate: ((totalSuccessful / allResults.length) * 100).toFixed(1),
+            llmEnabled: true,
+            processingTime: Date.now() - overallStartTime,
+            averageTime: Math.round((Date.now() - overallStartTime) / allResults.length),
+            parallel: true,
+            results: allResults
+        };
 
         // Update mode state with results
         setModeState(mode, {
             isProcessing: false,
             endTime: Date.now(),
-            results: data.results,
-            statistics: data
+            results: mergedData.results,
+            statistics: mergedData
         });
 
         // Display results for this mode
-        displayModeResults(mode, data.results);
-        updateModeStatistics(mode, data);
+        displayModeResults(mode, mergedData.results);
+        updateModeStatistics(mode, mergedData);
 
         // Ensure status reflects completion even if SSE didn't fire
         updateModeStatus(mode, 'Processing complete!', 100);
 
         // Generate CSV for this mode
-        generateModeCSV(mode, data.results);
+        generateModeCSV(mode, mergedData.results);
 
         // Show download button for this mode
         document.getElementById(`${mode}DownloadSection`).style.display = 'block';
